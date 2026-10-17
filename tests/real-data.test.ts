@@ -65,9 +65,15 @@ describe.skipIf(!has)('real data', () => {
     expect(unmapped(2022)).toBe(1);
   });
 
-  it('2014 雙館村 is not 2026 塩舘村', () => {
-    const id = store.villageIdOf(2014, '10010130002');
-    expect(id).not.toBe('10010130002');
-    expect(id.startsWith('2014:') || id.startsWith('2018:') || id.startsWith('2022:')).toBe(true);
+  it('2014 塩舘村 uses the borrowed 2018 shape and maps to 2026', () => {
+    // 2014-05 圖資的雙館村已拿掉，同代碼改為借用 2018 形狀的塩舘村（2026-10-17）
+    const f = store.villagesOfTown(2014, '10010130').features.find((x) => x.properties.VILLCODE === '10010130002');
+    expect(f?.properties.VILLNAME).toBe('塩舘村');
+    expect(f?.properties.BORROWED).toBe('2018');
+    expect(store.villageIdOf(2014, '10010130002')).toBe('10010130002');
+  });
+
+  it('2014 蘆竹 borrowed villages map to 2026 codes', () => {
+    expect(store.villageIdOf(2014, '10003050027')).toBe('68000050027');
   });
 });
