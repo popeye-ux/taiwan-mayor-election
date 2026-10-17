@@ -121,8 +121,20 @@ export class ElectionStore {
   villageCodesIn(year: number, id: VillageId, baseTown: string): string[] {
     const r = this.villageRow(year, id, baseTown);
     if (r) return [...r.moi];
-    const code = this.villageIds.get(year)?.fromId.get(id);
-    return code ? [code] : [];
+    const ids = this.villageIds.get(year);
+    const code = ids?.fromId.get(id);
+    if (!code) return [];
+    // 未開票的屆次沒有結果列：借用最近一屆的群組成員，換成本屆代碼
+    if (!this.meta.hasResults(year)) {
+      for (const y of [...this.meta.resultYears()].reverse()) {
+        const g = this.villageRow(y, id, baseTown);
+        if (!g) continue;
+        const yIds = this.villageIds.get(y)!;
+        const codes = g.moi.map((c) => ids!.fromId.get(yIds.toId.get(c) ?? '')).filter((c): c is string => !!c);
+        return codes.length ? codes.sort() : [code];
+      }
+    }
+    return [code];
   }
 
   countyRows(year: number): ResultRow[] {

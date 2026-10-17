@@ -1,5 +1,5 @@
 // 四屆比較：把 ElectionStore、URL 狀態與四格地圖串起來。
-import { onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, shallowRef, watch, type InjectionKey, type Ref } from 'vue';
 import type { Feature } from 'geojson';
 import { ElectionStore } from '../data/store';
 import { createJsonCache, latest, STALE } from '../data/cache';
@@ -326,3 +326,5 @@ export function useCompare() {
 }
 
 export type CompareCtx = ReturnType<typeof useCompare>;
+/** 側欄元件以 inject 取得 */
+export const CompareKey: InjectionKey<CompareCtx> = Symbol('compare');

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue';
 import TopBar from '../components/TopBar.vue';
 import Breadcrumbs from '../components/Breadcrumbs.vue';
 import Legend from '../components/Legend.vue';
@@ -9,16 +9,18 @@ import StatusBar from '../components/StatusBar.vue';
 import ComparePane from '../components/ComparePane.vue';
 import PaneSummary, { type Summary } from '../components/PaneSummary.vue';
 import InsetMap from '../components/InsetMap.vue';
+import SidePanel from '../components/side/SidePanel.vue';
 import type { Layer, Party } from '../data/types';
 import { webglSupported, type PaneHit } from '../map/pane';
 import { seatsByParty } from '../domain/national';
 import { pct1, ppSigned1 } from '../domain/format';
-import { useCompare, levelOf } from './useCompare';
+import { useCompare, levelOf, CompareKey } from './useCompare';
 
 // 欄頭英文小標（固定文案）
 const YL: Record<number, string> = { 2014: '第一次九合一', 2018: '第二次九合一', 2022: '第三次九合一', 2026: '第四次 · 11/28 投票' };
 
 const ctx = useCompare();
+provide(CompareKey, ctx);
 const { store, status, villageStatus, version, state, set, tooltip } = ctx;
 const webgl = ref(webglSupported());
 const mapsEl = ref<HTMLElement | null>(null);
@@ -125,7 +127,7 @@ const reload = () => location.reload();
           <span v-else>正在載入圖資…</span>
         </div>
       </section>
-      <aside class="side"><div class="side-in" /></aside>
+      <aside class="side"><div class="side-in"><SidePanel v-if="ready" /></div></aside>
     </div>
     <Tooltip :x="tooltip?.x ?? 0" :y="tooltip?.y ?? 0" :lines="tooltip?.lines ?? null" />
   </div>

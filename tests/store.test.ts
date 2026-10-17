@@ -46,7 +46,8 @@ describe('ElectionStore', () => {
     expect(store.villageIdOf(2014, '63000010003')).toBe('63000010002');
     expect(store.villageIdOf(2014, '63000010002')).toBe('63000010002');
     expect(store.villageCodesIn(2014, '63000010002', '63000010')).toEqual(['63000010002', '63000010003']);
-    expect(store.villageCodesIn(2026, '63000010002', '63000010')).toEqual(['63000010002']);
+    // 2026 未開票：借用最近一屆的群組成員
+    expect(store.villageCodesIn(2026, '63000010002', '63000010')).toEqual(['63000010002', '63000010003']);
   });
 
   it('no-moi village', async () => {
