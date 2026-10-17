@@ -3,20 +3,26 @@ import { markRaw, onBeforeUnmount, onMounted, ref } from 'vue';
 import { createPane, type PaneHandle } from '../map/pane';
 
 const props = defineProps<{ year: number; label: string; preview: boolean }>();
-const emit = defineEmits<{ ready: [pane: PaneHandle]; failed: [] }>();
+const emit = defineEmits<{ ready: [pane: PaneHandle]; failed: []; resize: [] }>();
 const el = ref<HTMLElement | null>(null);
 let pane: PaneHandle | null = null;
+// 欄寬在排版完成或視窗改變時才確定，大小一變就通知上層重新量測與對準
+const observer = new ResizeObserver(() => emit('resize'));
 
 onMounted(() => {
   try {
     // MapLibre 物件不可放進 reactive
     pane = markRaw(createPane(el.value!));
+    observer.observe(el.value!);
     emit('ready', pane);
   } catch {
     emit('failed');
   }
 });
-onBeforeUnmount(() => pane?.destroy());
+onBeforeUnmount(() => {
+  observer.disconnect();
+  pane?.destroy();
+});
 defineExpose({ year: props.year });
 </script>
 

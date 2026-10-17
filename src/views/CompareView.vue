@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue';
+import { computed, provide, ref } from 'vue';
 import TopBar from '../components/TopBar.vue';
 import Breadcrumbs from '../components/Breadcrumbs.vue';
 import Legend from '../components/Legend.vue';
@@ -23,8 +23,6 @@ const ctx = useCompare();
 provide(CompareKey, ctx);
 const { store, status, villageStatus, version, state, set, tooltip } = ctx;
 const webgl = ref(webglSupported());
-const mapsEl = ref<HTMLElement | null>(null);
-let observer: ResizeObserver | null = null;
 
 const ready = computed(() => status.value === 'ready');
 const years = computed(() => (version.value && ready.value ? store.meta.years() : []));
@@ -89,11 +87,6 @@ function insetHover(year: number, code: string | null, ev: MouseEvent) {
 const villageText = computed(() =>
   villageStatus.value === 'loading' ? '正在接收村里圖資…' : villageStatus.value === 'error' ? '連線中斷 · 村里圖資' : null);
 
-onMounted(() => {
-  observer = new ResizeObserver(() => ctx.resized());
-  if (mapsEl.value) observer.observe(mapsEl.value);
-});
-onBeforeUnmount(() => observer?.disconnect());
 
 const setLayer = (layer: Layer) => set({ layer });
 const reload = () => location.reload();
@@ -105,11 +98,11 @@ const reload = () => location.reload();
       <Breadcrumbs :items="crumbs" @go="set" />
     </TopBar>
     <div class="main">
-      <section ref="mapsEl" class="maps">
+      <section class="maps">
         <template v-if="ready && webgl">
           <ComparePane
             v-for="y in years" :key="y" :year="y" :label="YL[y] ?? ''" :preview="!store.meta.hasResults(y)"
-            @ready="(p) => ctx.registerPane(y, p)" @failed="webgl = false"
+            @ready="(p) => ctx.registerPane(y, p)" @failed="webgl = false" @resize="ctx.resized"
           >
             <template #summary><PaneSummary :summary="summaryFor(y)" /></template>
             <InsetMap

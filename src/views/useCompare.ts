@@ -8,7 +8,7 @@ import type { Layer, ResultRow } from '../data/types';
 import { fillFor, NONE } from '../domain/fill';
 import { flipBetween } from '../domain/flip';
 import { int, pct2, pp2 } from '../domain/format';
-import { boundsOf, townOfVillage } from '../geo/topo';
+import { mainBounds, townOfVillage } from '../geo/topo';
 import { OUTER_COUNTIES, type PaneHandle, type PaneHit } from '../map/pane';
 import { easeAllTo, syncCameras, zoomAll } from '../map/sync';
 import { useViewState } from '../state/useViewState';
@@ -174,15 +174,18 @@ export function useCompare() {
     if (s.town) feats = g.towns.features.filter((f) => f.properties.TOWNCODE === s.town);
     else if (s.county) feats = g.counties.features.filter((f) => f.properties.COUNTYCODE === s.county);
     else feats = g.counties.features.filter((f) => !OUTER_COUNTIES.includes(f.properties.COUNTYCODE));
-    return boundsOf(feats);
+    return mainBounds(feats);
   }
 
-  function frame(instant: boolean) {
+  /** 四張地圖都建立後才移動；回傳是否真的移動了 */
+  function frame(instant: boolean): boolean {
     const s = state.value;
+    if (panes.size < store.meta.years().length) return false;
     const maps = [...panes.values()].map((p) => p.map);
-    if (maps.length === 0) return;
+    // 地圖建立時欄寬可能還沒排定，先讓 MapLibre 重新量一次容器大小
+    for (const m of maps) m.resize();
     const pad = s.county ? { top: 24, right: 24, bottom: 24, left: 24 } : { top: 24, right: 24, bottom: 80, left: 44 };
-    easeAllTo(maps, targetBounds(s), pad, instant);
+    return easeAllTo(maps, targetBounds(s), pad, instant);
   }
 
   async function apply() {
@@ -216,10 +219,7 @@ export function useCompare() {
     }
     paint();
     const key = `${state.value.county}|${state.value.town}`;
-    if (key !== lastTarget) {
-      frame(lastTarget === null);
-      lastTarget = key;
-    }
+    if (key !== lastTarget && frame(lastTarget === null)) lastTarget = key;
   }
 
   // ── 互動 ──────────────────────────────────────────────
@@ -284,9 +284,15 @@ export function useCompare() {
     zoomAll([...panes.values()].map((p) => p.map), dir);
   }
 
+  let resizeQueued = false;
+  /** 同一個畫格內多格同時改變大小時只處理一次 */
   function resized() {
-    for (const p of panes.values()) p.map.resize();
-    if (status.value === 'ready') frame(true);
+    if (resizeQueued) return;
+    resizeQueued = true;
+    requestAnimationFrame(() => {
+      resizeQueued = false;
+      if (status.value === 'ready' && frame(true)) lastTarget = `${state.value.county}|${state.value.town}`;
+    });
   }
 
   function retryVillages() {

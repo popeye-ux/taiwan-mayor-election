@@ -28,21 +28,22 @@ export function syncCameras(maps: CameraLike[]): () => void {
 
 const easeCubicOut = (t: number) => 1 - (1 - t) ** 3;
 
-/** 以最後一張圖算出視角，四張圖用相同參數移動（600ms）。 */
+/** 以最後一張圖算出視角，四張圖用相同參數移動（600ms）。地圖還沒準備好時回傳 false。 */
 export function easeAllTo(
   maps: maplibregl.Map[],
   bounds: [[number, number], [number, number]],
   padding: { top: number; right: number; bottom: number; left: number },
   instant: boolean,
-): void {
+): boolean {
   const ref = maps[maps.length - 1];
-  if (!ref) return;
+  if (!ref) return false;
   const cam = ref.cameraForBounds(bounds, { padding });
-  if (!cam) return;
+  if (!cam) return false;
   for (const m of maps) {
     m.stop();
     m.easeTo({ center: cam.center, zoom: cam.zoom, duration: instant ? 0 : 600, easing: easeCubicOut });
   }
+  return true;
 }
 
 /** +／− 按鈕：每次 1.6 倍、280ms */

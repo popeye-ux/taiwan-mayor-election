@@ -47,6 +47,30 @@ export function boundsOf(features: Feature[]): [[number, number], [number, numbe
   return [[w, s], [e, n]];
 }
 
+/** 外環的平面面積（經緯度直接當平面，只用來比大小） */
+function ringArea(ring: number[][]): number {
+  let a = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += (ring[j][0] + ring[i][0]) * (ring[j][1] - ring[i][1]);
+  return Math.abs(a / 2);
+}
+
+/** 只保留主要島嶼（面積達該區最大島 ratio 以上）的形狀 */
+function mainParts(f: Feature, ratio: number): Feature {
+  const g = f.geometry;
+  if (!g || g.type !== 'MultiPolygon') return f;
+  const areas = g.coordinates.map((p) => ringArea(p[0]));
+  const max = Math.max(...areas);
+  return { ...f, geometry: { type: 'MultiPolygon', coordinates: g.coordinates.filter((_, i) => areas[i] >= max * ratio) } };
+}
+
+/**
+ * 視角用的範圍：每個區域只算主要島嶼。
+ * 高雄市（旗津區）含東沙、南沙，直接取極值會把範圍拉到南海。
+ */
+export function mainBounds(features: Feature[], ratio = 0.05): [[number, number], [number, number]] {
+  return boundsOf(features.map((f) => mainParts(f, ratio)));
+}
+
 export function townOfVillage(villCode: string): string {
   return villCode.slice(0, 8);
 }

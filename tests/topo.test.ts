@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { toBaseGeo, toVillages, boundsOf, townOfVillage } from '../src/geo/topo';
+import { toBaseGeo, toVillages, boundsOf, mainBounds, townOfVillage } from '../src/geo/topo';
+import type { Feature } from 'geojson';
 import { BASE_TOPO, VILL_TOPO } from './fixtures/topo';
 
 describe('topo', () => {
@@ -21,5 +22,18 @@ describe('topo', () => {
   });
   it('townOfVillage', () => {
     expect(townOfVillage('68000010001')).toBe('68000010');
+  });
+
+  it('mainBounds ignores far-away small islands', () => {
+    // 高雄市含南沙太平島：本島 1×1 度，遠方小島 0.01×0.01 度
+    const f: Feature = {
+      type: 'Feature', properties: {},
+      geometry: { type: 'MultiPolygon', coordinates: [
+        [[[120, 22], [121, 22], [121, 23], [120, 23], [120, 22]]],
+        [[[114, 10], [114.01, 10], [114.01, 10.01], [114, 10.01], [114, 10]]],
+      ] },
+    };
+    expect(mainBounds([f])).toEqual([[120, 22], [121, 23]]);
+    expect(boundsOf([f])[0]).toEqual([114, 10]);
   });
 });

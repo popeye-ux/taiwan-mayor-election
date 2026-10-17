@@ -53,7 +53,7 @@ export function createPane(container: HTMLElement): PaneHandle {
     style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#F6F7FB' } }] },
     center: [120.9, 23.7],
     zoom: 6,
-    minZoom: 4,
+    minZoom: 3,
     maxZoom: 16,
     dragRotate: false,
     pitchWithRotate: false,

@@ -50,10 +50,22 @@ const villageChips = computed(() => {
   void ctx.version.value;
   if (!s.value.town || !store.hasVillages()) return [];
   const y = lastResultYear.value;
-  return store.villageRowsOfTown(y, s.value.town).map((r) => ({
+  const chips = store.villageRowsOfTown(y, s.value.town).map((r) => ({
     id: r.moi.length ? store.villageIdOf(y, r.moi[0]) : `n:${r.name}`,
     name: r.name,
   }));
+  // 較早屆次才有、沒有內政部代碼的村里（例如 2014 高雄「未標示村里」）補在最後
+  const seen = new Set(chips.map((c) => c.id));
+  for (const py of store.meta.resultYears().slice(0, -1).reverse()) {
+    for (const r of store.villageRowsOfTown(py, s.value.town)) {
+      const id = `n:${r.name}`;
+      if (!r.moi.length && !seen.has(id)) {
+        seen.add(id);
+        chips.push({ id, name: r.name });
+      }
+    }
+  }
+  return chips;
 });
 
 const villageCode = computed(() => {
