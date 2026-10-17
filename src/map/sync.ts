@@ -6,14 +6,28 @@ export interface CameraLike {
   jumpTo(o: { center: [number, number]; zoom: number }): void;
   on(type: 'move', fn: (e: { originalEvent?: unknown }) => void): void;
   off(type: 'move', fn: (e: { originalEvent?: unknown }) => void): void;
+  /** 使用者操作進行中（例如滾輪縮放的後段動畫，這時的 move 不帶 originalEvent） */
+  userActive?(): boolean;
 }
 
-/** 使用者拖動任一張圖（事件帶 originalEvent）時，其餘的圖跳到同樣的中心與縮放。回傳解除函式。 */
+/** MapLibre 地圖 → CameraLike，滾輪或拖曳進行中視為使用者操作 */
+export function cameraOf(m: maplibregl.Map): CameraLike {
+  return {
+    getCenter: () => m.getCenter(),
+    getZoom: () => m.getZoom(),
+    jumpTo: (o) => { m.jumpTo(o); },
+    on: (t, fn) => { m.on(t, fn); },
+    off: (t, fn) => { m.off(t, fn); },
+    userActive: () => m.scrollZoom.isActive() || m.dragPan.isActive(),
+  };
+}
+
+/** 使用者操作任一張圖（事件帶 originalEvent，或 userActive）時，其餘的圖跳到同樣的中心與縮放。回傳解除函式。 */
 export function syncCameras(maps: CameraLike[]): () => void {
   let forwarding = false;
   const handlers = maps.map((src) => {
     const fn = (e: { originalEvent?: unknown }) => {
-      if (forwarding || !e.originalEvent) return;
+      if (forwarding || !(e.originalEvent || src.userActive?.())) return;
       forwarding = true;
       const c = src.getCenter();
       const view = { center: [c.lng, c.lat] as [number, number], zoom: src.getZoom() };

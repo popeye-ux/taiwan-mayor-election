@@ -47,6 +47,18 @@ describe('syncCameras', () => {
     expect(b.jumps).toEqual([]);
   });
 
+  it('moves during user wheel animation are forwarded', () => {
+    const [a, b] = [fakeMap('a'), fakeMap('b')];
+    let active = true;
+    a.userActive = () => active;
+    syncCameras([a, b]);
+    a.jumpTo({ center: [121, 24], zoom: 8 }); // 滾輪動畫後段：沒有 originalEvent
+    expect(b.jumps).toEqual([{ center: [121, 24], zoom: 8 }]);
+    active = false;
+    a.jumpTo({ center: [120, 23], zoom: 7 });
+    expect(b.jumps.length).toBe(1);
+  });
+
   it('dispose stops forwarding', () => {
     const [a, b] = [fakeMap('a'), fakeMap('b')];
     const dispose = syncCameras([a, b]);

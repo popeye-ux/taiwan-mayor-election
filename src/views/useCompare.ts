@@ -10,7 +10,7 @@ import { flipBetween } from '../domain/flip';
 import { int, pct2, pp2 } from '../domain/format';
 import { mainBounds, townOfVillage } from '../geo/topo';
 import { OUTER_COUNTIES, type PaneHandle, type PaneHit } from '../map/pane';
-import { easeAllTo, syncCameras, zoomAll } from '../map/sync';
+import { cameraOf, easeAllTo, syncCameras, zoomAll } from '../map/sync';
 import { useViewState } from '../state/useViewState';
 import { up, validate, type ValidateCtx, type ViewState } from '../state/url';
 
@@ -275,7 +275,7 @@ export function useCompare() {
     // 面板在 meta 載入後才建立，所以年份數已知
     if (panes.size === store.meta.years().length) {
       unsync?.();
-      unsync = syncCameras([...panes.values()].map((p) => p.map));
+      unsync = syncCameras([...panes.values()].map((p) => cameraOf(p.map)));
     }
     void apply();
   }
