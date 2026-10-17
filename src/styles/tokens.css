@@ -1,0 +1,36 @@
+/* v3 Fresh 設計 token（來源：layout_demo/fresh.css 與 v3 HTML 末段覆寫；改為語意名稱） */
+:root {
+  --paper: #F6F7FB;        /* 頁面、地圖底色（原 --abyss） */
+  --surface: #FFFFFF;      /* 側欄、卡片、chip 底（原 --hull） */
+  --hover: #EEF0F7;        /* hover 底色（原 --fog） */
+  --hairline: #E3E6EF;
+  --coastline: #C9CEDD;
+  --ink: #16161D;          /* 主要文字、hover 外框（原 --bone） */
+  --ink-2: #5B6075;        /* 次要文字（原 --mist） */
+  --ink-3: #8A90A6;        /* 第三層文字、得票條「其他」（原 --deepwater） */
+  --accent: #6C4CF5;       /* 眉標、2026、連結、焦點外框（原 --signal） */
+  --flip: #FF4D8D;         /* 政黨輪替（原 --trail） */
+  --selected: #FF7A1A;     /* 選中 */
+  --none: #EEF0F6;         /* 無資料 */
+  --land: #F2F3F8;         /* 其他縣市背景 */
+  --preview-line: #C3C7D6; /* 2026 邊框 */
+  --bg-overlay: rgba(255, 255, 255, .92);
+  --shadow-menu: 0 8px 24px rgba(22, 22, 29, .08), 0 0 0 1px var(--hairline);
+  --shadow-selected: 0 2px 8px rgba(255, 122, 26, .3);
+  --inner-signal: inset 0 0 0 2px #6C4CF5;
+
+  --font-display: 'Outfit', 'Noto Sans TC', 'PingFang TC', system-ui, sans-serif;
+  --font-body: 'Noto Sans TC', 'PingFang TC', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+
+  --text-2xs: 10px; --text-xs: 11px; --text-sm: 13px; --text-base: 14px;
+  --text-md: 16px; --text-lg: 20px; --text-xl: 24px; --text-2xl: 32px;
+  --ls-label: .06em;
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px;
+  --r-md: 16px; --r-full: 999px;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms; --dur-base: 180ms; --dur-slow: 280ms;
+  --topbar-height: 64px;
+}
