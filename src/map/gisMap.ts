@@ -99,25 +99,28 @@ export function createGisMap(container: HTMLElement): GisMapHandle {
           paint: { 'fill-color': FILL_EXPR, 'fill-opacity': hoverOr(FILL[s].hover, FILL[s].opacity) },
         });
       }
-      // 借來的形狀（2014）和原有的村重疊：先鋪一層不透明底色蓋住下面的村，再半透明著色，才不會兩種顏色疊在一起
-      const v = FILL.villages;
-      map.addLayer({
-        id: 'villages-mask', type: 'fill', source: 'villages', minzoom: v.min, filter: BORROWED,
-        paint: { 'fill-color': PAPER, 'fill-opacity': 1 },
-      });
-      map.addLayer({
-        id: 'villages-borrowed-fill', type: 'fill', source: 'villages', minzoom: v.min, filter: BORROWED,
-        paint: { 'fill-color': FILL_EXPR, 'fill-opacity': hoverOr(v.hover, v.opacity) },
-      });
       map.addLayer({ id: 'towns-line', type: 'line', source: 'towns', minzoom: ZOOM_TOWN, paint: { 'line-color': LINE, 'line-width': 0.6 } });
-      map.addLayer({
-        id: 'villages-line', type: 'line', source: 'villages', minzoom: 11,
+      const villageLine = (id: string, filter: maplibregl.FilterSpecification) => map.addLayer({
+        id, type: 'line', source: 'villages', minzoom: 11, filter,
         paint: {
           'line-color': LINE,
           'line-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0, 12, 1],
           'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.3, 15, 1.2],
         },
       });
+      villageLine('villages-line', NOT_BORROWED);
+      // 借來的形狀（2014）和原有的村重疊：畫在原有村里的填色與邊界之上，先鋪不透明底色蓋住下面的村
+      // （顏色與舊界線都不透出來），再半透明著色、畫自己的邊界
+      const v = FILL.villages;
+      map.addLayer({
+        id: 'villages-mask', type: 'fill', source: 'villages', minzoom: v.min, maxzoom: v.max, filter: BORROWED,
+        paint: { 'fill-color': PAPER, 'fill-opacity': 1 },
+      });
+      map.addLayer({
+        id: 'villages-borrowed-fill', type: 'fill', source: 'villages', minzoom: v.min, maxzoom: v.max, filter: BORROWED,
+        paint: { 'fill-color': FILL_EXPR, 'fill-opacity': hoverOr(v.hover, v.opacity) },
+      });
+      villageLine('villages-borrowed-line', BORROWED);
       map.addLayer({ id: 'counties-line', type: 'line', source: 'counties', maxzoom: ZOOM_TOWN, paint: { 'line-color': LINE, 'line-width': 0.8 } });
       // 縣市外框置頂
       map.addLayer({
@@ -200,7 +203,7 @@ export function createGisMap(container: HTMLElement): GisMapHandle {
     },
     setPreview(on) {
       void ready.then(() => {
-        for (const id of ['counties-line', 'towns-line', 'villages-line']) map.setPaintProperty(id, 'line-color', on ? PREVIEW_LINE : LINE);
+        for (const id of ['counties-line', 'towns-line', 'villages-line', 'villages-borrowed-line']) map.setPaintProperty(id, 'line-color', on ? PREVIEW_LINE : LINE);
       });
     },
     setHover(hit) {

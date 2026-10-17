@@ -33,6 +33,9 @@ const HOVER = '#16161D';
 const SELECTED = '#FF7A1A';
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] };
 const FILL_EXPR: maplibregl.ExpressionSpecification = ['coalesce', ['feature-state', 'fill'], NONE];
+const BORROWED: maplibregl.FilterSpecification = ['has', 'BORROWED'];
+const SUFFIXES = ['fill', 'line', 'hover', 'sel'];
+const BORROWED_SUFFIXES = ['borrowed-fill', 'borrowed-line'];
 
 const stateFlag = (name: string, on: number): maplibregl.ExpressionSpecification =>
   ['case', ['boolean', ['feature-state', name], false], on, 0];
@@ -76,6 +79,9 @@ export function createPane(container: HTMLElement): PaneHandle {
       for (const s of SOURCES) {
         map.addLayer({ id: `${s}-line`, type: 'line', source: s, paint: { 'line-color': LINE, 'line-width': s === 'villages' ? 0.5 : 0.8 } });
       }
+      // 2014 借來的形狀和原有的村重疊：再畫一次在村里邊界線之上，舊村的界線才不會穿過它
+      map.addLayer({ id: 'villages-borrowed-fill', type: 'fill', source: 'villages', filter: BORROWED, paint: { 'fill-color': FILL_EXPR } });
+      map.addLayer({ id: 'villages-borrowed-line', type: 'line', source: 'villages', filter: BORROWED, paint: { 'line-color': LINE, 'line-width': 0.5 } });
       for (const s of SOURCES) {
         map.addLayer({ id: `${s}-hover`, type: 'line', source: s, paint: { 'line-color': HOVER, 'line-width': stateFlag('hover', 1.4) } });
       }
@@ -102,20 +108,21 @@ export function createPane(container: HTMLElement): PaneHandle {
     const townFilter: maplibregl.FilterSpecification = ['==', ['get', 'COUNTYCODE'], mode.countyCode ?? ''];
     for (const s of SOURCES) {
       const vis = visible(s) ? 'visible' : 'none';
-      for (const suffix of ['fill', 'line', 'hover', 'sel']) {
+      for (const suffix of s === 'villages' ? [...SUFFIXES, ...BORROWED_SUFFIXES] : SUFFIXES) {
         const id = `${s}-${suffix}`;
         map.setLayoutProperty(id, 'visibility', vis);
         if (s === 'counties') map.setFilter(id, countyFilter);
         if (s === 'towns') map.setFilter(id, townFilter);
       }
       map.setPaintProperty(`${s}-line`, 'line-color', mode.preview ? PREVIEW_LINE : LINE);
+      if (s === 'villages') map.setPaintProperty('villages-borrowed-line', 'line-color', mode.preview ? PREVIEW_LINE : LINE);
     }
     // 縣市層以下，其他縣市只當背景
     map.setPaintProperty('counties-fill', 'fill-color', national ? FILL_EXPR : LAND);
   }
 
   function hitAt(point: maplibregl.PointLike): PaneHit | null {
-    const layers = SOURCES.filter(visible).map((s) => `${s}-fill`).reverse();
+    const layers = SOURCES.filter(visible).flatMap((s) => (s === 'villages' ? ['villages-borrowed-fill', 'villages-fill'] : [`${s}-fill`])).reverse();
     for (const f of map.queryRenderedFeatures(point, { layers })) {
       const source = f.source as SourceId;
       const props = f.properties as Record<string, string>;
