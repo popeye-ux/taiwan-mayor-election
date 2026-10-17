@@ -48,7 +48,7 @@ export function boundsOf(features: Feature[]): [[number, number], [number, numbe
 }
 
 /** 外環的平面面積（經緯度直接當平面，只用來比大小） */
-function ringArea(ring: number[][]): number {
+export function ringArea(ring: number[][]): number {
   let a = 0;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += (ring[j][0] + ring[i][0]) * (ring[j][1] - ring[i][1]);
   return Math.abs(a / 2);
