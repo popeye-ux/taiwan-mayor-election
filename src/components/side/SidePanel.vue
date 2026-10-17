@@ -8,9 +8,9 @@ import SourceNote from './SourceNote.vue';
 import { countyEn } from '../../data/countyEn';
 import { flipCount, weightedTurnout } from '../../domain/national';
 import { int, pct2 } from '../../domain/format';
-import { CompareKey } from '../../views/useCompare';
+import { ViewKey } from '../../views/common';
 
-const ctx = inject(CompareKey)!;
+const ctx = inject(ViewKey)!;
 const { store } = ctx;
 const s = computed(() => ctx.state.value);
 const lastResultYear = computed(() => store.meta.resultYears().at(-1)!);

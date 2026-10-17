@@ -1,5 +1,5 @@
 <template>
-  <p class="src">資料來源：中央選舉委員會；地圖：內政部村里界（2014 年版經 kiang/cunli 取得）</p>
+  <p class="src">資料來源：中央選舉委員會；地圖：內政部村里界（2014 年版經 kiang/cunli 取得；2014 年部分村里形狀借用 2018 年圖資）</p>
 </template>
 
 <style scoped>

@@ -3,17 +3,18 @@ import SegmentedControl from './SegmentedControl.vue';
 import type { Layer } from '../data/types';
 
 defineProps<{ layer: Layer }>();
-const emit = defineEmits<{ 'update:layer': [layer: Layer] }>();
+const emit = defineEmits<{ 'update:layer': [layer: Layer]; view: [view: 'gis'] }>();
 
 const views = [
   { value: 'compare', label: '四屆比較' },
-  { value: 'gis', label: '地理資訊圖台', disabled: true, title: '即將推出' },
+  { value: 'gis', label: '地理資訊圖台' },
 ];
 const layers = [
   { value: 'party', label: '當選政黨' },
   { value: 'margin', label: '得票差距' },
   { value: 'turnout', label: '投票率' },
   { value: 'flip', label: '政黨輪替' },
+  { value: 'bellwether', label: '章魚區' },
 ];
 const onLayer = (v: string) => emit('update:layer', v as Layer);
 </script>
@@ -22,7 +23,7 @@ const onLayer = (v: string) => emit('update:layer', v as Layer);
   <header class="top">
     <div class="brand"><b>九合一選舉圖台</b><span>Mayoral · 2014–2026</span></div>
     <slot />
-    <SegmentedControl class="views" :options="views" model-value="compare" />
+    <SegmentedControl class="views" :options="views" model-value="compare" @update:model-value="(v) => v === 'gis' && emit('view', 'gis')" />
     <SegmentedControl :options="layers" :model-value="layer" @update:model-value="onLayer" />
   </header>
 </template>

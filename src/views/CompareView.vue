@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, provide, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import TopBar from '../components/TopBar.vue';
 import Breadcrumbs from '../components/Breadcrumbs.vue';
 import Legend from '../components/Legend.vue';
@@ -14,13 +15,14 @@ import type { Layer, Party } from '../data/types';
 import { webglSupported, type PaneHit } from '../map/pane';
 import { seatsByParty } from '../domain/national';
 import { pct1, ppSigned1 } from '../domain/format';
-import { useCompare, levelOf, CompareKey } from './useCompare';
+import { useCompare, levelOf } from './useCompare';
+import { ViewKey } from './common';
 
 // 欄頭英文小標（固定文案）
 const YL: Record<number, string> = { 2014: '第一次九合一', 2018: '第二次九合一', 2022: '第三次九合一', 2026: '第四次 · 11/28 投票' };
 
 const ctx = useCompare();
-provide(CompareKey, ctx);
+provide(ViewKey, ctx);
 const { store, status, load, version, state, set, tooltip } = ctx;
 const webgl = ref(webglSupported());
 
@@ -97,12 +99,16 @@ const loadText = computed(() => {
 
 
 const setLayer = (layer: Layer) => set({ layer });
+const route = useRoute();
+const router = useRouter();
+/** 切到 GIS：query 原樣保留（圖層、選取、year） */
+const toGis = () => router.push({ path: '/gis', query: route.query });
 const reload = () => location.reload();
 </script>
 
 <template>
   <div class="app">
-    <TopBar :layer="state.layer" @update:layer="setLayer">
+    <TopBar :layer="state.layer" @update:layer="setLayer" @view="toGis">
       <Breadcrumbs :items="crumbs" @go="set" />
     </TopBar>
     <div class="main">
@@ -118,7 +124,7 @@ const reload = () => location.reload();
               @pick="(c) => set({ county: c, town: null, village: null })" @hover="(c, ev) => insetHover(y, c, ev)"
             />
           </ComparePane>
-          <Legend :layer="state.layer" :parties="legendParties" />
+          <Legend :layer="state.layer" :parties="legendParties" :national="!state.county" />
           <ZoomControl @zoom="ctx.zoom" />
           <StatusBar :text="loadText" :retry="load.kind === 'error'" @retry="ctx.retry" />
         </template>

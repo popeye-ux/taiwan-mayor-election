@@ -4,14 +4,18 @@ import Chip from '../Chip.vue';
 import type { Level, ResultRow } from '../../data/types';
 import { stackSegments } from '../../domain/stack';
 import { int, pct2, pp2 } from '../../domain/format';
-import { CompareKey } from '../../views/useCompare';
+import { BORROWED_NOTE, ViewKey } from '../../views/common';
 
 const props = defineProps<{
   year: number; row: ResultRow | undefined; level: Level; county: string; flipped: boolean | null; preview: boolean;
   /** 村里資料還沒到時顯示的文字（不顯示「本屆無資料」） */
   pending?: string | null;
+  /** GIS 目前顯示的屆次 */
+  current?: boolean;
+  /** 這一屆的形狀借用其他屆圖資 */
+  borrowed?: boolean;
 }>();
-const ctx = inject(CompareKey)!;
+const ctx = inject(ViewKey)!;
 const meta = ctx.store.meta;
 
 const voteDay = computed(() => {
@@ -26,7 +30,7 @@ const winLabel = computed(() => (props.level === 'county' ? '當選' : '第一�
 </script>
 
 <template>
-  <div class="yb" :class="{ pre: preview }">
+  <div class="yb" :class="{ pre: preview || current }">
     <div class="yb-h">
       <b>{{ year }}</b>
       <span v-if="preview" class="mono day">{{ voteDay }}</span>
@@ -58,6 +62,7 @@ const winLabel = computed(() => (props.level === 'county' ? '當選' : '第一�
       </div>
     </template>
     <div v-else class="empty">本屆無資料</div>
+    <div v-if="borrowed" class="note">{{ BORROWED_NOTE }}</div>
   </div>
 </template>
 
@@ -78,4 +83,5 @@ const winLabel = computed(() => (props.level === 'county' ? '當選' : '第一�
 .meta { display: flex; flex-wrap: wrap; gap: var(--s-4); font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); }
 .meta b { color: var(--ink); font-weight: 500; }
 .empty { font-size: var(--text-sm); color: var(--ink-3); }
+.note { font-size: var(--text-xs); color: var(--ink-3); }
 </style>

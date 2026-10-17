@@ -2,8 +2,11 @@
 import { computed } from 'vue';
 import type { Layer, Party } from '../data/types';
 import { FLIP_NO, FLIP_YES, NONE, TURNOUT_HIGH, TURNOUT_LOW } from '../domain/fill';
+import { BW_DEEP, BW_PALE, BW_RAMP_MAX } from '../domain/bellwether';
 
-const props = defineProps<{ layer: Layer; parties: Party[] }>();
+/** national：全國視圖（章魚區在縣市層不適用） */
+const props = defineProps<{ layer: Layer; parties: Party[]; national: boolean }>();
+const bwRamp = `linear-gradient(90deg, ${BW_DEEP}, ${BW_PALE})`;
 const marginRamp = computed(() => `linear-gradient(90deg, ${NONE}, ${props.parties[0]?.color ?? '#3B6FFF'})`);
 const turnoutRamp = `linear-gradient(90deg, ${TURNOUT_LOW}, ${TURNOUT_HIGH})`;
 </script>
@@ -20,6 +23,13 @@ const turnoutRamp = `linear-gradient(90deg, ${TURNOUT_LOW}, ${TURNOUT_HIGH})`;
     </template>
     <template v-else-if="layer === 'turnout'">
       <span class="lg mono">40%</span><i class="ramp" :style="{ background: turnoutRamp }" /><span class="lg mono">75%</span>
+    </template>
+    <template v-else-if="layer === 'bellwether'">
+      <span v-if="national" class="lg">章魚區 · 放大到縣市以下查看</span>
+      <template v-else>
+        <span class="lg mono">0 pp</span><i class="ramp" :style="{ background: bwRamp }" /><span class="lg mono">≥ {{ BW_RAMP_MAX }} pp</span>
+        <span class="lg"><i class="dot light" :style="{ background: NONE }" />第一名與全縣市不同／有效票不足</span>
+      </template>
     </template>
     <template v-else>
       <span class="lg"><i class="dot" :style="{ background: FLIP_YES }" />政黨輪替</span>

@@ -1,24 +1,21 @@
 // 四屆比較：把 ElectionStore、URL 狀態與四格地圖串起來。
-import { onBeforeUnmount, onMounted, ref, shallowRef, watch, type InjectionKey, type Ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from 'vue';
 import type { Feature } from 'geojson';
 import { ElectionStore } from '../data/store';
 import { createJsonCache, latest } from '../data/cache';
 import { toBaseArea } from '../data/crossYear';
-import type { Layer, ResultRow } from '../data/types';
-import { fillFor, NONE } from '../domain/fill';
-import { flipBetween } from '../domain/flip';
-import { int, pct2, pp2 } from '../domain/format';
-import { mainBounds, townOfVillage } from '../geo/topo';
+import type { Layer } from '../data/types';
+import { mainBounds } from '../geo/topo';
 import { OUTER_COUNTIES, type PaneHandle, type PaneHit } from '../map/pane';
 import { cameraOf, easeAllTo, syncCameras, zoomAll } from '../map/sync';
 import { useViewState } from '../state/useViewState';
-import { up, validate, type ValidateCtx, type ViewState } from '../state/url';
+import { up, validate, type ViewState } from '../state/url';
 import { runApply, type LoadStatus } from './flow';
+import { createLookups, fillOf, tooltipLines, type ViewCtx } from './common';
 
 export type ViewLevel = 'national' | 'county' | 'town';
 
 export const levelOf = (s: ViewState): ViewLevel => (s.town ? 'town' : s.county ? 'county' : 'national');
-const stripBrackets = (s: string) => s.replace(/[[\]]/g, '');
 
 export function useCompare() {
   const store = new ElectionStore(createJsonCache());
@@ -36,112 +33,39 @@ export function useCompare() {
 
   // ── 查詢 ──────────────────────────────────────────────
 
+  const lookups = createLookups(store);
+  const { prevYear, countyName, townName, villageName } = lookups;
   const baseYear = () => store.meta.baseYear();
-
-  function prevYear(year: number): number | null {
-    const ys = store.meta.years();
-    const p = ys[ys.indexOf(year) - 1];
-    return p !== undefined && store.meta.hasResults(p) ? p : null;
-  }
-
-  function validateCtx(withVillages: boolean): ValidateCtx {
-    const g = store.baseGeo(baseYear());
-    const ctx: ValidateCtx = {
-      hasCounty: (c) => g.counties.features.some((f) => f.properties.COUNTYCODE === c),
-      townInCounty: (t, c) => g.towns.features.some((f) => f.properties.TOWNCODE === t && f.properties.COUNTYCODE === c),
-    };
-    if (withVillages) {
-      ctx.villageValid = (id, town) => {
-        if (!id.startsWith('n:')) {
-          const code = id.includes(':') ? id.split(':')[1] : id;
-          if (toBaseArea(townOfVillage(code)) !== town) return false;
-        }
-        return store.meta.years().some((y) => store.villageCodesIn(y, id, town).length > 0 || !!store.villageRow(y, id, town));
-      };
-    }
-    return ctx;
-  }
-
-  /** 目前選取的區域在某屆的結果列（最深一層） */
-  function rowAt(year: number, s: ViewState = state.value): ResultRow | undefined {
-    if (s.town && s.village) return store.villageRow(year, s.village, s.town);
-    if (s.town) return store.townRow(year, s.town);
-    if (s.county) return store.countyRow(year, s.county);
-    return undefined;
-  }
-
-  /** 目前選取區域在某屆是否輪替；縣市層用 JSON 的 flipped */
-  function flipAt(year: number, s: ViewState = state.value): boolean | null {
-    const cur = rowAt(year, s);
-    if (!s.town) return cur?.flipped ?? null;
-    const p = prevYear(year);
-    return p === null ? null : flipBetween(cur, rowAt(p, s), store.meta);
-  }
-
-  function countyName(baseCounty: string): string {
-    const f = store.baseGeo(baseYear()).counties.features.find((x) => x.properties.COUNTYCODE === baseCounty);
-    return f?.properties.COUNTYNAME ?? '';
-  }
-
-  function townName(baseTown: string): string {
-    const f = store.baseGeo(baseYear()).towns.features.find((x) => x.properties.TOWNCODE === baseTown);
-    return f ? stripBrackets(f.properties.TOWNNAME) : '';
-  }
-
-  function villageName(id: string, baseTown: string): string {
-    if (id.startsWith('n:')) return id.slice(2);
-    for (const y of [...store.meta.resultYears()].reverse()) {
-      const r = store.villageRow(y, id, baseTown);
-      if (r) return r.name;
-    }
-    const [y, code] = id.includes(':') ? [Number(id.split(':')[0]), id.split(':')[1]] : [baseYear(), id];
-    const f = store.villagesOfTown(y, baseTown).features.find((x) => x.properties.VILLCODE === code);
-    return f ? stripBrackets(f.properties.VILLNAME) : '';
-  }
+  const rowAt = (year: number, s: ViewState = state.value) => lookups.rowAt(year, s);
+  const flipAt = (year: number, s: ViewState = state.value) => lookups.flipAt(year, s);
 
   // ── 填色 ──────────────────────────────────────────────
 
   /** 某一層的填色；level 決定畫哪個 source（全國→縣市、縣市→鄉鎮、鄉鎮→村里） */
   function fillsFor(year: number, layer: Layer, s: ViewState, level: ViewLevel): { source: 'counties' | 'towns' | 'villages'; fills: Map<string, string> } {
     const fills = new Map<string, string>();
-    const preview = !store.meta.hasResults(year);
-    const p = prevYear(year);
     if (level === 'national') {
       for (const f of store.baseGeo(year).counties.features) {
-        const code = f.properties.COUNTYCODE;
-        const row = preview ? undefined : store.rowByCode(year, 'county', code);
-        fills.set(code, fillFor(layer, row, store.meta, row?.flipped ?? null));
+        fills.set(f.properties.COUNTYCODE, fillOf(store, year, layer, 'county', f.properties.COUNTYCODE));
       }
       return { source: 'counties', fills };
     }
     if (level === 'county') {
       const cc = store.areaCode(year, s.county!);
       for (const f of store.baseGeo(year).towns.features) {
-        if (f.properties.COUNTYCODE !== cc) continue;
-        const code = f.properties.TOWNCODE;
-        const row = preview ? undefined : store.rowByCode(year, 'town', code);
-        const flipped = layer === 'flip' && row && p !== null
-          ? flipBetween(row, store.townRow(p, toBaseArea(code)), store.meta) : null;
-        fills.set(code, fillFor(layer, row, store.meta, flipped));
+        if (f.properties.COUNTYCODE === cc) fills.set(f.properties.TOWNCODE, fillOf(store, year, layer, 'town', f.properties.TOWNCODE));
       }
       return { source: 'towns', fills };
     }
     for (const f of store.villagesOfTown(year, s.town!).features) {
-      const code = f.properties.VILLCODE;
-      if (!f.properties.VILLNAME) continue;
-      const row = preview ? undefined : store.rowByCode(year, 'village', code);
-      const flipped = layer === 'flip' && row && p !== null
-        ? flipBetween(row, store.villageRow(p, store.villageIdOf(year, code), s.town!), store.meta) : null;
-      fills.set(code, fillFor(layer, row, store.meta, flipped));
+      if (f.properties.VILLNAME) fills.set(f.properties.VILLCODE, fillOf(store, year, layer, 'village', f.properties.VILLCODE));
     }
     return { source: 'villages', fills };
   }
 
   /** 插圖框用：全國層某縣市的顏色 */
   function countyFill(year: number, code: string): string {
-    if (!store.meta.hasResults(year)) return NONE;
-    const row = store.rowByCode(year, 'county', code);
-    return fillFor(state.value.layer, row, store.meta, row?.flipped ?? null);
+    return fillOf(store, year, state.value.layer, 'county', code);
   }
 
   // ── 地圖 ──────────────────────────────────────────────
@@ -193,7 +117,7 @@ export function useCompare() {
     if (status.value !== 'ready') return Promise.resolve();
     return runApply({
       state: () => state.value,
-      validate: (x, withVillages) => validate(x, validateCtx(withVillages)),
+      validate: (x, withVillages) => validate(x, lookups.validateCtx(withVillages)),
       replace,
       hasVillages: () => store.hasVillages(),
       ensureTowns: () => store.ensureTowns(),
@@ -211,35 +135,6 @@ export function useCompare() {
 
   // ── 互動 ──────────────────────────────────────────────
 
-  function tooltipLines(year: number, hit: PaneHit): string[] {
-    const level = hit.source === 'counties' ? 'county' : hit.source === 'towns' ? 'town' : 'village';
-    const row = store.rowByCode(year, level, hit.code);
-    const props = hit.props;
-    const name = row?.name ?? stripBrackets(props.VILLNAME || props.TOWNNAME || props.COUNTYNAME);
-    const title = level === 'county' ? name : `${props.COUNTYNAME} · ${name}`;
-    if (!store.meta.hasResults(year)) {
-      const n = store.meta.contest(year, props.COUNTYNAME)?.candidates.length ?? 0;
-      return [title, `${year} · ${n} 位參選人 · 尚未開票`];
-    }
-    if (!row) return [title, '本屆無資料'];
-    const [, , pct] = row.votes[0];
-    const lines = [title, `${year} · ${store.meta.candidate(row.winner).name}（${store.meta.partyOfCandidate(row.winner).label}）${pct2(pct)}`];
-    const layer = state.value.layer;
-    if (layer === 'turnout') lines.push(`投票率 ${pct2(row.turnout)}`);
-    else lines.push(`差距 ${pp2(row.margin_pp)} · ${int(row.margin_votes)} 票`);
-    if (layer === 'flip') {
-      const p = prevYear(year);
-      let f: boolean | null = null;
-      if (level === 'county') f = row.flipped ?? null;
-      else if (p !== null && level === 'town') f = flipBetween(row, store.townRow(p, toBaseArea(hit.code)), store.meta);
-      else if (p !== null && state.value.town) {
-        f = flipBetween(row, store.villageRow(p, store.villageIdOf(year, hit.code), state.value.town), store.meta);
-      }
-      lines.push(f === null ? '無前屆比較' : f ? '政黨輪替' : '延續執政');
-    }
-    return lines;
-  }
-
   function onPaneClick(year: number, hit: PaneHit) {
     if (hit.source === 'counties') set({ county: toBaseArea(hit.code), town: null, village: null });
     else if (hit.source === 'towns') set({ town: toBaseArea(hit.code), village: null });
@@ -247,7 +142,7 @@ export function useCompare() {
   }
 
   function showTip(year: number, hit: PaneHit | null, ev: MouseEvent) {
-    tooltip.value = hit && status.value === 'ready' ? { x: ev.clientX, y: ev.clientY, lines: tooltipLines(year, hit) } : null;
+    tooltip.value = hit && status.value === 'ready' ? { x: ev.clientX, y: ev.clientY, lines: tooltipLines(store, year, hit, state.value.layer) } : null;
   }
 
   function registerPane(year: number, pane: PaneHandle) {
@@ -311,13 +206,10 @@ export function useCompare() {
     void apply();
   });
 
-  return {
+  const ctx = {
     store, status, load, version, state: state as Readonly<Ref<ViewState>>, set, tooltip,
     registerPane, onPaneClick, showTip, zoom, resized, retry, rowAt, flipAt, prevYear, countyFill,
-    countyName, townName, villageName,
+    countyName, townName, villageName, currentYear: ref<number | null>(null),
   };
+  return ctx satisfies ViewCtx;
 }
-
-export type CompareCtx = ReturnType<typeof useCompare>;
-/** 側欄元件以 inject 取得 */
-export const CompareKey: InjectionKey<CompareCtx> = Symbol('compare');
