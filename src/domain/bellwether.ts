@@ -46,9 +46,11 @@ export interface BwCandidate {
   name: string;
   row: ResultRow;
   countyWinner: number | undefined;
+  /** 村里所屬鄉鎮（基準代碼），點清單時用 */
+  town?: string;
 }
 
-export interface BwEntry { id: string; name: string; devs: number[]; mean: number }
+export interface BwEntry { id: string; name: string; devs: number[]; mean: number; town?: string }
 
 const round2 = (x: number) => Math.round(x * 100) / 100;
 
@@ -73,7 +75,7 @@ export function stableBellwethers(byYear: Map<number, BwCandidate[]>, years: num
       devs.push(d);
     }
     if (devs.length !== years.length) continue;
-    out.push({ id: last.id, name: last.name, devs, mean: round2(devs.reduce((a, b) => a + b, 0) / devs.length) });
+    out.push({ id: last.id, name: last.name, town: last.town, devs, mean: round2(devs.reduce((a, b) => a + b, 0) / devs.length) });
   }
   return out.sort(byMean);
 }
@@ -83,7 +85,7 @@ export function currentBellwethers(cands: BwCandidate[], level: 'town' | 'villag
   const out: BwEntry[] = [];
   for (const c of cands) {
     const d = qualifies(c, level);
-    if (d !== null) out.push({ id: c.id, name: c.name, devs: [d], mean: d });
+    if (d !== null) out.push({ id: c.id, name: c.name, town: c.town, devs: [d], mean: d });
   }
   return out.sort(byMean);
 }

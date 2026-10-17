@@ -18,7 +18,8 @@ export interface GisMapHandle {
   setPreview(on: boolean): void;
   setHover(hit: PaneHit | null): void;
   setSelected(source: SourceId | null, codes: string[]): void;
-  fitTo(bounds: [[number, number], [number, number]], level: ZoomLevel): void;
+  /** instant：開站時依網址定位，不播動畫 */
+  fitTo(bounds: [[number, number], [number, number]], level: ZoomLevel, instant?: boolean): void;
   home(): void;
   onHover(cb: (hit: PaneHit | null, ev: MouseEvent) => void): void;
   onClick(cb: (hit: PaneHit) => void): void;
@@ -40,6 +41,8 @@ const LABEL_VILLAGE = '#5B6075';
 const FONT = ['Klokantech Noto Sans Regular'];
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] };
 const FILL_EXPR: maplibregl.ExpressionSpecification = ['coalesce', ['feature-state', 'fill'], NONE];
+const BORROWED: maplibregl.FilterSpecification = ['has', 'BORROWED'];
+const NOT_BORROWED: maplibregl.FilterSpecification = ['!', ['has', 'BORROWED']];
 
 const hoverOr = (on: number, off: number): maplibregl.ExpressionSpecification =>
   ['case', ['boolean', ['feature-state', 'hover'], false], on, off];
@@ -92,9 +95,20 @@ export function createGisMap(container: HTMLElement): GisMapHandle {
       for (const s of SOURCES) {
         map.addLayer({
           id: `${s}-fill`, type: 'fill', source: s, minzoom: FILL[s].min, maxzoom: FILL[s].max,
+          ...(s === 'villages' ? { filter: NOT_BORROWED } : {}),
           paint: { 'fill-color': FILL_EXPR, 'fill-opacity': hoverOr(FILL[s].hover, FILL[s].opacity) },
         });
       }
+      // 借來的形狀（2014）和原有的村重疊：先鋪一層不透明底色蓋住下面的村，再半透明著色，才不會兩種顏色疊在一起
+      const v = FILL.villages;
+      map.addLayer({
+        id: 'villages-mask', type: 'fill', source: 'villages', minzoom: v.min, filter: BORROWED,
+        paint: { 'fill-color': PAPER, 'fill-opacity': 1 },
+      });
+      map.addLayer({
+        id: 'villages-borrowed-fill', type: 'fill', source: 'villages', minzoom: v.min, filter: BORROWED,
+        paint: { 'fill-color': FILL_EXPR, 'fill-opacity': hoverOr(v.hover, v.opacity) },
+      });
       map.addLayer({ id: 'towns-line', type: 'line', source: 'towns', minzoom: ZOOM_TOWN, paint: { 'line-color': LINE, 'line-width': 0.6 } });
       map.addLayer({
         id: 'villages-line', type: 'line', source: 'villages', minzoom: 11,
@@ -144,7 +158,8 @@ export function createGisMap(container: HTMLElement): GisMapHandle {
     let level = levelAtZoom(map.getZoom());
     if (level === 'village' && !hasVillages) level = 'town';
     const source = LEVEL_SOURCE[level];
-    for (const f of map.queryRenderedFeatures(point, { layers: [`${source}-fill`] })) {
+    const layers = source === 'villages' ? ['villages-borrowed-fill', 'villages-fill'] : [`${source}-fill`];
+    for (const f of map.queryRenderedFeatures(point, { layers })) {
       const props = f.properties as Record<string, string>;
       if (source === 'villages' && !props.VILLNAME) continue; // 沒有村名的小島、海域
       return { source, code: props[KEY[source]], props };
@@ -202,13 +217,13 @@ export function createGisMap(container: HTMLElement): GisMapHandle {
         for (const s of selected) map.setFeatureState({ source: s.source, id: s.code }, { selected: true });
       });
     },
-    fitTo(bounds, level) {
+    fitTo(bounds, level, instant = false) {
       const p = FIT[level];
       const cam = map.cameraForBounds(bounds, { padding: p.padding, maxZoom: p.maxZoom });
       if (!cam) return;
       const zoom = Math.max(cam.zoom ?? INITIAL.zoom, p.minZoom ?? 0);
       map.stop();
-      map.easeTo({ center: cam.center, zoom, duration: p.duration });
+      map.easeTo({ center: cam.center, zoom, duration: instant ? 0 : p.duration });
     },
     home() {
       map.stop();

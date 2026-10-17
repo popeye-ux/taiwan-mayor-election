@@ -81,6 +81,11 @@ export class ElectionStore {
     return fromBaseArea(baseCode, this.areaCodes.get(year) ?? new Set());
   }
 
+  /** 某屆全部村里形狀（尚未載入時為空） */
+  allVillages(year: number): FeatureCollection<Geometry, VillProps> {
+    return this.villages.get(year) ?? { type: 'FeatureCollection', features: [] };
+  }
+
   villagesOfTown(year: number, baseTown: string): FeatureCollection<Geometry, VillProps> {
     const code = this.areaCode(year, baseTown);
     const all = this.villages.get(year)?.features ?? [];

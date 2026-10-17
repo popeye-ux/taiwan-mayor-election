@@ -10,7 +10,7 @@ const props = defineProps<{
   year: number; row: ResultRow | undefined; level: Level; county: string; flipped: boolean | null; preview: boolean;
   /** 村里資料還沒到時顯示的文字（不顯示「本屆無資料」） */
   pending?: string | null;
-  /** GIS 目前顯示的屆次 */
+  /** 加外框：四屆比較框未開票的那張，GIS 框目前顯示的屆次（由 YearCards 決定） */
   current?: boolean;
   /** 這一屆的形狀借用其他屆圖資 */
   borrowed?: boolean;
@@ -30,7 +30,7 @@ const winLabel = computed(() => (props.level === 'county' ? '當選' : '第一�
 </script>
 
 <template>
-  <div class="yb" :class="{ pre: preview || current }">
+  <div class="yb" :class="{ pre: current }">
     <div class="yb-h">
       <b>{{ year }}</b>
       <span v-if="preview" class="mono day">{{ voteDay }}</span>

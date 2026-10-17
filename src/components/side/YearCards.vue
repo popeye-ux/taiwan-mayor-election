@@ -28,7 +28,7 @@ const cards = computed(() => {
     preview: !ctx.store.meta.hasResults(y),
     row: ctx.rowAt(y, s),
     flipped: ctx.flipAt(y, s),
-    current: ctx.currentYear.value === y,
+    current: ctx.currentYear.value === null ? !ctx.store.meta.hasResults(y) : ctx.currentYear.value === y,
     borrowed: borrowedAt(y),
   }));
 });

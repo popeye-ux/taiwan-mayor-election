@@ -2,10 +2,7 @@
 // 全國側欄：22 縣市 × 各屆的當選政黨
 import { computed, inject } from 'vue';
 import { ViewKey } from '../../views/common';
-
-// 縣市排序（依原型）
-const ORDER = ['臺北市', '新北市', '桃園市', '臺中市', '臺南市', '高雄市', '基隆市', '新竹市', '新竹縣', '苗栗縣', '彰化縣',
-  '南投縣', '雲林縣', '嘉義縣', '嘉義市', '屏東縣', '宜蘭縣', '花蓮縣', '臺東縣', '澎湖縣', '金門縣', '連江縣'];
+import { COUNTY_ORDER as ORDER } from '../../data/countyEn';
 
 const ctx = inject(ViewKey)!;
 const years = computed(() => ctx.store.meta.years());
