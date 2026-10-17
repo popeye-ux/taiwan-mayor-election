@@ -37,6 +37,16 @@ const FILL_EXPR: maplibregl.ExpressionSpecification = ['coalesce', ['feature-sta
 const stateFlag = (name: string, on: number): maplibregl.ExpressionSpecification =>
   ['case', ['boolean', ['feature-state', name], false], on, 0];
 
+/** 瀏覽器是否能建立 WebGL context（MapLibre 必要條件） */
+export function webglSupported(): boolean {
+  try {
+    const c = document.createElement('canvas');
+    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+  } catch {
+    return false;
+  }
+}
+
 export function createPane(container: HTMLElement): PaneHandle {
   const map = new maplibregl.Map({
     container,
