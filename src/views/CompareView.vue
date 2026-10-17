@@ -21,7 +21,7 @@ const YL: Record<number, string> = { 2014: '第一次九合一', 2018: '第二�
 
 const ctx = useCompare();
 provide(CompareKey, ctx);
-const { store, status, villageStatus, version, state, set, tooltip } = ctx;
+const { store, status, load, version, state, set, tooltip } = ctx;
 const webgl = ref(webglSupported());
 
 const ready = computed(() => status.value === 'ready');
@@ -64,6 +64,8 @@ function summaryFor(year: number): Summary {
     const n = store.meta.contest(year, ctx.countyName(s.county!))?.candidates.length ?? 0;
     return { kind: 'text', title: `${n} 位參選人`, line: '尚未開票' };
   }
+  // 村里資料還沒到（或載入失敗）時，不能說「本屆無資料」
+  if (s.village && !store.hasVillages()) return { kind: 'pending', line: pendingText.value };
   const row = ctx.rowAt(year);
   if (!row) return { kind: 'none' };
   return {
@@ -84,8 +86,14 @@ function insetHover(year: number, code: string | null, ev: MouseEvent) {
   ctx.showTip(year, hit, ev);
 }
 
-const villageText = computed(() =>
-  villageStatus.value === 'loading' ? '正在接收村里圖資…' : villageStatus.value === 'error' ? '連線中斷 · 村里圖資' : null);
+const pendingText = computed(() => (load.value.kind === 'error' ? '連線中斷 · 村里圖資' : '正在接收村里圖資…'));
+const LOAD_TEXT = { villages: '連線中斷 · 村里圖資', towns: '連線中斷 · 鄉鎮資料' };
+const loadText = computed(() => {
+  const l = load.value;
+  if (l.kind === 'loading') return '正在接收村里圖資…';
+  if (l.kind === 'error') return LOAD_TEXT[l.what];
+  return null;
+});
 
 
 const setLayer = (layer: Layer) => set({ layer });
@@ -112,7 +120,7 @@ const reload = () => location.reload();
           </ComparePane>
           <Legend :layer="state.layer" :parties="legendParties" />
           <ZoomControl @zoom="ctx.zoom" />
-          <StatusBar :text="villageText" :retry="villageStatus === 'error'" @retry="ctx.retryVillages" />
+          <StatusBar :text="loadText" :retry="load.kind === 'error'" @retry="ctx.retry" />
         </template>
         <div v-else class="center">
           <span v-if="!webgl">此瀏覽器不支援 WebGL，無法顯示地圖</span>

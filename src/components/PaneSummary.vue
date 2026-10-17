@@ -5,7 +5,8 @@ export type Summary =
   | { kind: 'seats'; items: { color: string; label: string; seats: number }[]; total: number }
   | { kind: 'text'; title: string; line: string }
   | { kind: 'winner'; color: string; name: string; flipped: boolean | null; line: string }
-  | { kind: 'none' };
+  | { kind: 'none' }
+  | { kind: 'pending'; line: string };
 
 defineProps<{ summary: Summary }>();
 </script>
@@ -28,6 +29,7 @@ defineProps<{ summary: Summary }>();
       <b>{{ summary.title }}</b>
       <small>{{ summary.line }}</small>
     </div>
+    <div v-else-if="summary.kind === 'pending'" class="cw"><small>{{ summary.line }}</small></div>
     <div v-else class="cw"><small>本屆無資料</small></div>
   </div>
 </template>

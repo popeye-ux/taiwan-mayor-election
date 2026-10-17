@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch, type InjectionKey, type Ref } from 'vue';
 import type { Feature } from 'geojson';
 import { ElectionStore } from '../data/store';
-import { createJsonCache, latest, STALE } from '../data/cache';
+import { createJsonCache, latest } from '../data/cache';
 import { toBaseArea } from '../data/crossYear';
 import type { Layer, ResultRow } from '../data/types';
 import { fillFor, NONE } from '../domain/fill';
@@ -13,6 +13,7 @@ import { OUTER_COUNTIES, type PaneHandle, type PaneHit } from '../map/pane';
 import { cameraOf, easeAllTo, syncCameras, zoomAll } from '../map/sync';
 import { useViewState } from '../state/useViewState';
 import { up, validate, type ValidateCtx, type ViewState } from '../state/url';
+import { runApply, type LoadStatus } from './flow';
 
 export type ViewLevel = 'national' | 'county' | 'town';
 
@@ -22,7 +23,7 @@ const stripBrackets = (s: string) => s.replace(/[[\]]/g, '');
 export function useCompare() {
   const store = new ElectionStore(createJsonCache());
   const status = ref<'loading' | 'ready' | 'error'>('loading');
-  const villageStatus = ref<'idle' | 'loading' | 'error'>('idle');
+  const load = shallowRef<LoadStatus>({ kind: 'idle' });
   /** 每次載入新資料就 +1，讓依賴 store 的 computed 重新計算 */
   const version = ref(0);
   const tooltip = shallowRef<{ x: number; y: number; lines: string[] } | null>(null);
@@ -188,39 +189,25 @@ export function useCompare() {
     return easeAllTo(maps, targetBounds(s), pad, instant);
   }
 
-  async function apply() {
-    if (status.value !== 'ready') return;
-    const s = state.value;
-    const fixed = validate(s, validateCtx(store.hasVillages()));
-    if (JSON.stringify(fixed) !== JSON.stringify(s)) {
-      replace(fixed);
-      return;
-    }
-    if (s.county) {
-      await store.ensureTowns();
-      version.value++;
-    }
-    if (s.town && !store.hasVillages()) {
-      villageStatus.value = 'loading';
-      paint();
-      try {
-        if ((await villagesLatest(store.ensureVillages())) === STALE) return;
-      } catch {
-        villageStatus.value = 'error';
-        return;
-      }
-      villageStatus.value = 'idle';
-      version.value++;
-      const again = validate(state.value, validateCtx(true));
-      if (JSON.stringify(again) !== JSON.stringify(state.value)) {
-        replace(again);
-        return;
-      }
-    }
-    paint();
-    const key = `${state.value.county}|${state.value.town}`;
-    if (key !== lastTarget && frame(lastTarget === null)) lastTarget = key;
+  function apply(): Promise<void> {
+    if (status.value !== 'ready') return Promise.resolve();
+    return runApply({
+      state: () => state.value,
+      validate: (x, withVillages) => validate(x, validateCtx(withVillages)),
+      replace,
+      hasVillages: () => store.hasVillages(),
+      ensureTowns: () => store.ensureTowns(),
+      ensureVillages: () => villagesLatest(store.ensureVillages()),
+      paint,
+      frame: () => {
+        const key = `${state.value.county}|${state.value.town}`;
+        if (key !== lastTarget && frame(lastTarget === null)) lastTarget = key;
+      },
+      setLoad: (l) => { load.value = l; },
+      bump: () => { version.value++; },
+    });
   }
+
 
   // ── 互動 ──────────────────────────────────────────────
 
@@ -295,7 +282,7 @@ export function useCompare() {
     });
   }
 
-  function retryVillages() {
+  function retry() {
     void apply();
   }
 
@@ -325,8 +312,8 @@ export function useCompare() {
   });
 
   return {
-    store, status, villageStatus, version, state: state as Readonly<Ref<ViewState>>, set, tooltip,
-    registerPane, onPaneClick, showTip, zoom, resized, retryVillages, rowAt, flipAt, prevYear, countyFill,
+    store, status, load, version, state: state as Readonly<Ref<ViewState>>, set, tooltip,
+    registerPane, onPaneClick, showTip, zoom, resized, retry, rowAt, flipAt, prevYear, countyFill,
     countyName, townName, villageName,
   };
 }

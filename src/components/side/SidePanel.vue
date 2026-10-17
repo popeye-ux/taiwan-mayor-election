@@ -105,7 +105,7 @@ const villageCode = computed(() => {
     <template v-else>
       <div>
         <div class="eyebrow">{{ s.village ? `Village${villageCode ? ` · ${villageCode}` : ''}` : `Township · ${s.town}` }}</div>
-        <h1>{{ s.village ? ctx.villageName(s.village, s.town) : ctx.townName(s.town) }}</h1>
+        <h1>{{ s.village ? (ctx.villageName(s.village, s.town) || '…') : ctx.townName(s.town) }}</h1>
         <div class="sub">{{ s.village ? `${countyName} · ${ctx.townName(s.town)}` : `${countyName} · ${countyEn(countyName)}` }}</div>
       </div>
       <div class="block">
@@ -116,7 +116,7 @@ const villageCode = computed(() => {
             @click="ctx.set({ village: v.id })"
           >{{ v.name }}</button>
         </div>
-        <div v-else class="empty">正在接收村里圖資…</div>
+        <div v-else class="empty">{{ ctx.load.value.kind === 'error' ? '連線中斷 · 村里圖資' : '正在接收村里圖資…' }}</div>
       </div>
       <YearCards :level="s.village ? 'village' : 'town'" :county="countyName" />
     </template>

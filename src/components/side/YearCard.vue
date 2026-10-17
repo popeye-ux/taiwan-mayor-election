@@ -6,7 +6,11 @@ import { stackSegments } from '../../domain/stack';
 import { int, pct2, pp2 } from '../../domain/format';
 import { CompareKey } from '../../views/useCompare';
 
-const props = defineProps<{ year: number; row: ResultRow | undefined; level: Level; county: string; flipped: boolean | null; preview: boolean }>();
+const props = defineProps<{
+  year: number; row: ResultRow | undefined; level: Level; county: string; flipped: boolean | null; preview: boolean;
+  /** 村里資料還沒到時顯示的文字（不顯示「本屆無資料」） */
+  pending?: string | null;
+}>();
 const ctx = inject(CompareKey)!;
 const meta = ctx.store.meta;
 
@@ -29,7 +33,8 @@ const winLabel = computed(() => (props.level === 'county' ? '當選' : '第一�
       <Chip v-else-if="flipped === true" tone="flip">政黨輪替</Chip>
       <Chip v-else-if="flipped === false">延續執政</Chip>
     </div>
-    <template v-if="preview">
+    <div v-if="pending && !preview" class="empty">{{ pending }}</div>
+    <template v-else-if="preview">
       <div v-for="c in candidates" :key="c.id" class="cand">
         <span class="nm"><i class="dot" :style="{ background: meta.party(c.party).color }" /><span>{{ c.name }}</span><Chip>{{ meta.party(c.party).label }}</Chip></span>
         <span class="pc">—</span><span class="vv" />
