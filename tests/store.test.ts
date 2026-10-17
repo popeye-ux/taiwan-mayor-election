@@ -65,6 +65,12 @@ describe('ElectionStore', () => {
     expect(store.villageCodesIn(2026, '2014:63000010009', '63000010')).toEqual([]);
   });
 
+  it('county winner by contest', async () => {
+    const { store } = await ready(false);
+    expect(store.countyWinner(2014, 1)).toBe(1);
+    expect(store.countyWinner(2014, 999)).toBeUndefined();
+  });
+
   it('town rows of county', async () => {
     const { store } = await ready();
     expect(store.townRowsOfCounty(2014, '68000').map((r) => r.name)).toEqual(['桃園市']);

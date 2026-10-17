@@ -1,7 +1,7 @@
 // data/json/ 與 data/geo/ 的型別；欄位定義見 docs/superpowers/specs/2026-10-14-static-json-design.md
 
 export type Level = 'county' | 'town' | 'village';
-export type Layer = 'party' | 'margin' | 'turnout' | 'flip';
+export type Layer = 'party' | 'margin' | 'turnout' | 'flip' | 'bellwether';
 
 export interface Election { year: number; vote_date: string; has_results: boolean }
 export interface Party { id: number; name: string; label: string; short: string; color: string }
@@ -23,8 +23,14 @@ export interface ResultRow {
   winner: number; margin_votes: number; margin_pp: number;
   /** 只有縣市層有 */
   flipped?: boolean | null;
+  /** 章魚偏差（pp），只有鄉鎮、村里層有；票數為 0 時為 null */
+  bw_dev?: number | null;
 }
 
 export interface CountyProps { COUNTYCODE: string; COUNTYNAME: string }
 export interface TownProps extends CountyProps { TOWNCODE: string; TOWNNAME: string }
-export interface VillProps extends TownProps { VILLCODE: string; VILLNAME: string }
+export interface VillProps extends TownProps {
+  VILLCODE: string; VILLNAME: string;
+  /** 形狀借用自哪一屆的圖資（目前只有 2014 的部分村里，值為 "2018"） */
+  BORROWED?: string;
+}

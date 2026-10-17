@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { interpolateRgb } from 'd3-interpolate';
 import { pct2, pct1, pp2, ppSigned1, int } from '../src/domain/format';
 import { fillFor, NONE, FLIP_YES, FLIP_NO } from '../src/domain/fill';
+import { BW_DEEP, BW_PALE } from '../src/domain/bellwether';
 import { flipBetween } from '../src/domain/flip';
 import { seatsByParty, weightedTurnout, flipCount } from '../src/domain/national';
 import { stackSegments } from '../src/domain/stack';
@@ -25,6 +26,10 @@ describe('format', () => {
 });
 
 describe('fillFor', () => {
+  it('bellwether layer uses status', () => {
+    expect(fillFor('bellwether', winnerRow(1), meta, null, { kind: 'ok', dev: 0 })).toBe(interpolateRgb(BW_DEEP, BW_PALE)(0));
+    expect(fillFor('bellwether', winnerRow(1), meta, null)).toBe(NONE);
+  });
   it('party layer uses winner party color', () => {
     expect(fillFor('party', winnerRow(1), meta, null)).toBe('#3B6FFF');
   });

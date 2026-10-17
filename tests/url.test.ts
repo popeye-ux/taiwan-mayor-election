@@ -21,6 +21,17 @@ describe('query round trip', () => {
   it('invalid layer falls back to party', () => {
     expect(parseQuery({ layer: 'xx' }).layer).toBe('party');
   });
+  it('year round trips and default writes nothing', () => {
+    expect(parseQuery(toQuery(s({ year: 2014 })))).toEqual(s({ year: 2014 }));
+    expect(toQuery(s({ year: null }))).toEqual({});
+  });
+  it('invalid year is null', () => {
+    expect(parseQuery({ year: 'abc' }).year).toBeNull();
+    expect(parseQuery({ year: '20140' }).year).toBeNull();
+  });
+  it('bellwether layer parses', () => {
+    expect(parseQuery({ layer: 'bellwether' }).layer).toBe('bellwether');
+  });
   it('empty and non-string values are null', () => {
     expect(parseQuery({ county: '', town: ['a'] })).toEqual(DEFAULT_STATE);
   });
@@ -45,6 +56,11 @@ describe('validate', () => {
   it('invalid village cleared once villages are loaded', () => {
     expect(validate(full, { ...ctx, villageValid: () => false })).toEqual(s({ county: '66000', town: '66000060' }));
     expect(validate(full, { ...ctx, villageValid: () => true })).toEqual(full);
+  });
+  it('validate drops unknown year', () => {
+    const hasYear = (y: number) => [2014, 2026].includes(y);
+    expect(validate(s({ year: 2010 }), { ...ctx, hasYear }).year).toBeNull();
+    expect(validate(s({ year: 2026 }), { ...ctx, hasYear }).year).toBe(2026);
   });
   it('village without town is cleared', () => {
     expect(validate(s({ county: '66000', village: 'x' }), ctx)).toEqual(s({ county: '66000' }));

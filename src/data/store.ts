@@ -137,6 +137,11 @@ export class ElectionStore {
     return [code];
   }
 
+  /** 同一場選舉的縣市第一名（當選人） */
+  countyWinner(year: number, contest: number): number | undefined {
+    return this.countyRows(year).find((r) => r.contest === contest)?.winner;
+  }
+
   countyRows(year: number): ResultRow[] {
     return this.results.get(`${year}|county`)?.rows ?? [];
   }

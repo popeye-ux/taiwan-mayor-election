@@ -1,6 +1,7 @@
 import { interpolateRgb } from 'd3-interpolate';
 import type { Layer, ResultRow } from '../data/types';
 import type { MetaIndex } from '../data/meta';
+import { bwFill, type BwStatus } from './bellwether';
 
 export const NONE = '#EEF0F6';
 export const FLIP_YES = '#FF4D8D';
@@ -12,8 +13,10 @@ export const TURNOUT_MAX = 75;
 
 const turnoutRamp = interpolateRgb(TURNOUT_LOW, TURNOUT_HIGH);
 
-/** 四種圖層的填色規則（design.md 二「圖層」） */
-export function fillFor(layer: Layer, row: ResultRow | undefined, meta: MetaIndex, flipped: boolean | null): string {
+/** 各圖層的填色規則（design.md 二「圖層」）；章魚區圖層用 bw（由 domain/bellwether 的 bwStatus 算出） */
+export function fillFor(
+  layer: Layer, row: ResultRow | undefined, meta: MetaIndex, flipped: boolean | null, bw?: BwStatus,
+): string {
   if (!row) return NONE;
   const color = meta.partyOfCandidate(row.winner).color;
   switch (layer) {
@@ -27,5 +30,7 @@ export function fillFor(layer: Layer, row: ResultRow | undefined, meta: MetaInde
     }
     case 'flip':
       return flipped === null ? NONE : flipped ? FLIP_YES : FLIP_NO;
+    case 'bellwether':
+      return bwFill(bw ?? { kind: 'na' });
   }
 }
