@@ -149,7 +149,9 @@ export function tooltipLines(store: ElectionStore, year: number, hit: PaneHit, l
   const row = store.rowByCode(year, level, hit.code);
   const props = hit.props;
   const name = row?.name ?? stripBrackets(props.VILLNAME || props.TOWNNAME || props.COUNTYNAME);
-  const title = level === 'county' ? name : `${props.COUNTYNAME} · ${name}`;
+  const title = level === 'county' ? name
+    : level === 'town' ? `${props.COUNTYNAME} · ${name}`
+    : `${props.COUNTYNAME} · ${stripBrackets(props.TOWNNAME)} · ${name}`;
   const lines = [title];
   if (!store.meta.hasResults(year)) {
     const n = store.meta.contest(year, props.COUNTYNAME)?.candidates.length ?? 0;

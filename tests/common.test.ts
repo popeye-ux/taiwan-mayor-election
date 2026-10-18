@@ -50,6 +50,11 @@ describe('tooltipLines', () => {
     expect(tooltipLines(store, 2014, villHit({ BORROWED: '2018' }), 'party').at(-1)).toBe('形狀借用 2018 年圖資');
     expect(tooltipLines(store, 2014, villHit(), 'party').join()).not.toContain('借用');
   });
+  it('title: village includes township', async () => {
+    const store = await storeWith();
+    expect(tooltipLines(store, 2014, villHit(), 'party')[0]).toMatch(/^臺北市 · 松山區 · /);
+    expect(tooltipLines(store, 2014, townHit, 'party')[0]).toMatch(/^臺北市 · [^·]+$/);
+  });
 });
 
 describe('fillOf', () => {
