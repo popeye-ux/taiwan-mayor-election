@@ -54,4 +54,16 @@ describe('syncData', () => {
     fs.rmSync(path.join(root, 'data/geo/2026/base.json'));
     await expect(syncData({ repoRoot: root, dest })).rejects.toThrow(/tools\/geo\/build_geo\.mjs/);
   });
+
+  it('standalone web repo (no data/) keeps committed public/data', async () => {
+    await syncData({ repoRoot: root, dest });
+    fs.rmSync(path.join(root, 'data'), { recursive: true });
+    expect(await syncData({ repoRoot: root, dest })).toBe('kept');
+    expect(fs.existsSync(path.join(dest, 'json/2014/town.json'))).toBe(true);
+  });
+
+  it('standalone web repo without public/data still fails', async () => {
+    fs.rmSync(path.join(root, 'data'), { recursive: true });
+    await expect(syncData({ repoRoot: root, dest })).rejects.toThrow(/tools\/build_db\.py/);
+  });
 });

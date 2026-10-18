@@ -18,7 +18,12 @@ function requireFile(file, hint) {
   if (!fs.existsSync(file)) throw new Error(`找不到 ${file}，請先在專案根目錄執行 ${hint}`);
 }
 
+/**
+ * 回傳 'copied'；上層沒有 data/（只有 web/ 的 GitHub repo，例如 Cloudflare 建置）時
+ * 沿用已 commit 的 public/data，回傳 'kept'。
+ */
 export async function syncData({ repoRoot, dest }) {
+  if (!fs.existsSync(path.join(repoRoot, 'data')) && fs.existsSync(path.join(dest, 'json', 'meta.json'))) return 'kept';
   const jsonDir = path.join(repoRoot, 'data', 'json');
   const geoDir = path.join(repoRoot, 'data', 'geo');
   const metaFile = path.join(jsonDir, 'meta.json');
@@ -34,12 +39,13 @@ export async function syncData({ repoRoot, dest }) {
   const filter = (src) => !isScratch(path.basename(src));
   fs.cpSync(jsonDir, path.join(dest, 'json'), { recursive: true, filter });
   fs.cpSync(geoDir, path.join(dest, 'geo'), { recursive: true, filter });
+  return 'copied';
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   syncData({ repoRoot: path.resolve(web, '..'), dest: path.join(web, 'public', 'data') })
-    .then(() => console.log('資料已同步到 web/public/data/'))
+    .then((r) => console.log(r === 'kept' ? '找不到上層 data/，沿用 public/data/ 現有資料' : '資料已同步到 web/public/data/'))
     .catch((err) => {
       console.error(err.message);
       process.exit(1);
