@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { toBaseGeo, toVillages, boundsOf, mainBounds, townOfVillage } from '../src/geo/topo';
 import type { Feature } from 'geojson';
+import type { Topology } from 'topojson-specification';
 import { BASE_TOPO, VILL_TOPO } from './fixtures/topo';
 
 describe('topo', () => {
@@ -8,6 +9,24 @@ describe('topo', () => {
     const g = toBaseGeo(BASE_TOPO);
     expect(g.counties.features.map((f) => f.properties.COUNTYCODE)).toEqual(['63000', '68000']);
     expect(g.towns.features.length).toBe(2);
+  });
+  it('coast: each county keeps only arcs not shared with another county', () => {
+    // 兩個相鄰方形，共用 x=1 那條邊
+    const topo = {
+      type: 'Topology',
+      arcs: [[[1, 0], [1, 1]], [[1, 1], [0, 1], [0, 0], [1, 0]], [[1, 0], [2, 0], [2, 1], [1, 1]]],
+      objects: {
+        counties: { type: 'GeometryCollection', geometries: [
+          { type: 'Polygon', arcs: [[1, 0]], properties: { COUNTYCODE: 'A', COUNTYNAME: 'A' } },
+          { type: 'Polygon', arcs: [[2, -1]], properties: { COUNTYCODE: 'B', COUNTYNAME: 'B' } },
+        ] },
+        towns: { type: 'GeometryCollection', geometries: [] },
+      },
+    } as unknown as Topology;
+    const coast = toBaseGeo(topo).coast.features;
+    expect(coast.map((f) => f.properties.COUNTYCODE)).toEqual(['A', 'B']);
+    expect(coast[0].geometry.coordinates).toEqual([[[1, 1], [0, 1], [0, 0], [1, 0]]]);
+    expect(coast[1].geometry.coordinates).toEqual([[[1, 0], [2, 0], [2, 1], [1, 1]]]);
   });
   it('toVillages skips null geometry', () => {
     const v = toVillages(VILL_TOPO);

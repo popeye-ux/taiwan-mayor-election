@@ -75,6 +75,7 @@ export function createPane(container: HTMLElement): PaneHandle {
   const ready = new Promise<void>((resolve) => {
     map.once('load', () => {
       for (const s of SOURCES) map.addSource(s, { type: 'geojson', data: EMPTY, promoteId: KEY[s] });
+      map.addSource('coast', { type: 'geojson', data: EMPTY });
       for (const s of SOURCES) map.addLayer({ id: `${s}-fill`, type: 'fill', source: s, paint: { 'fill-color': FILL_EXPR } });
       for (const s of SOURCES) {
         map.addLayer({ id: `${s}-line`, type: 'line', source: s, paint: { 'line-color': LINE, 'line-width': s === 'villages' ? 0.5 : 0.8 } });
@@ -82,6 +83,8 @@ export function createPane(container: HTMLElement): PaneHandle {
       // 2014 借來的形狀和原有的村重疊：再畫一次在村里邊界線之上，舊村的界線才不會穿過它
       map.addLayer({ id: 'villages-borrowed-fill', type: 'fill', source: 'villages', filter: BORROWED, paint: { 'fill-color': FILL_EXPR } });
       map.addLayer({ id: 'villages-borrowed-line', type: 'line', source: 'villages', filter: BORROWED, paint: { 'line-color': LINE, 'line-width': 0.5 } });
+      // 海岸線壓在白色界線之上，各屆都和 2026 的邊框同色
+      map.addLayer({ id: 'coast', type: 'line', source: 'coast', paint: { 'line-color': PREVIEW_LINE, 'line-width': 0.8 } });
       for (const s of SOURCES) {
         map.addLayer({ id: `${s}-hover`, type: 'line', source: s, paint: { 'line-color': HOVER, 'line-width': stateFlag('hover', 1.4) } });
       }
@@ -106,6 +109,7 @@ export function createPane(container: HTMLElement): PaneHandle {
       ? ['!', ['in', ['get', 'COUNTYCODE'], ['literal', OUTER_COUNTIES]]]
       : ['!=', ['get', 'COUNTYCODE'], mode.countyCode ?? ''];
     const townFilter: maplibregl.FilterSpecification = ['==', ['get', 'COUNTYCODE'], mode.countyCode ?? ''];
+    map.setFilter('coast', national ? countyFilter : null);
     for (const s of SOURCES) {
       const vis = visible(s) ? 'visible' : 'none';
       for (const suffix of s === 'villages' ? [...SUFFIXES, ...BORROWED_SUFFIXES] : SUFFIXES) {
@@ -139,6 +143,7 @@ export function createPane(container: HTMLElement): PaneHandle {
       void ready.then(() => {
         (map.getSource('counties') as maplibregl.GeoJSONSource).setData(geo.counties);
         (map.getSource('towns') as maplibregl.GeoJSONSource).setData(geo.towns);
+        (map.getSource('coast') as maplibregl.GeoJSONSource).setData(geo.coast);
       });
     },
     setVillages(fc) {

@@ -1,11 +1,13 @@
-import { feature } from 'topojson-client';
-import type { Feature, FeatureCollection, Geometry } from 'geojson';
-import type { GeometryCollection, Topology } from 'topojson-specification';
+import { feature, mesh } from 'topojson-client';
+import type { Feature, FeatureCollection, Geometry, MultiLineString } from 'geojson';
+import type { GeometryCollection, GeometryObject, Topology } from 'topojson-specification';
 import type { CountyProps, TownProps, VillProps } from '../data/types';
 
 export interface BaseGeo {
   counties: FeatureCollection<Geometry, CountyProps>;
   towns: FeatureCollection<Geometry, TownProps>;
+  /** 各縣市不和其他縣市共用的邊界，也就是海岸線（含國界、湖泊） */
+  coast: FeatureCollection<MultiLineString, Pick<CountyProps, 'COUNTYCODE'>>;
 }
 
 function collection<P>(topo: Topology, name: string): FeatureCollection<Geometry, P> {
@@ -16,9 +18,22 @@ function collection<P>(topo: Topology, name: string): FeatureCollection<Geometry
   return { type: 'FeatureCollection', features: fc.features.filter((f) => f.geometry) as Feature<Geometry, P>[] };
 }
 
-/** base.json：counties + towns */
+/** 每個縣市只屬於自己的弧段（topojson 的外圍弧段 a === b） */
+function coastOf(topo: Topology): BaseGeo['coast'] {
+  const obj = topo.objects.counties as GeometryCollection<CountyProps>;
+  const features = obj.geometries
+    .filter((g) => g.type)
+    .map((g: GeometryObject<CountyProps>) => ({
+      type: 'Feature' as const,
+      properties: { COUNTYCODE: (g.properties as CountyProps).COUNTYCODE },
+      geometry: mesh(topo, obj, (a, b) => a === g && b === g),
+    }));
+  return { type: 'FeatureCollection', features };
+}
+
+/** base.json：counties + towns，另由 counties 推出海岸線 */
 export function toBaseGeo(topo: Topology): BaseGeo {
-  return { counties: collection<CountyProps>(topo, 'counties'), towns: collection<TownProps>(topo, 'towns') };
+  return { counties: collection<CountyProps>(topo, 'counties'), towns: collection<TownProps>(topo, 'towns'), coast: coastOf(topo) };
 }
 
 /** villages.json：villages（略過沒有形狀者） */
