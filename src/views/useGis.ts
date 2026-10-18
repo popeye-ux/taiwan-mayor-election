@@ -180,6 +180,13 @@ export function useGis() {
     }
   }
 
+  /** 雙擊臺灣以外：取消選取並回初始視角（年份、圖層不變）。已在全國時也要回初始視角 */
+  function reset() {
+    lastTarget = targetKey({ ...state.value, county: null, town: null });
+    gis?.home();
+    set({ county: null, town: null, village: null });
+  }
+
   function setYear(y: number) {
     set(yearPatch(y, store.meta));
   }
@@ -193,6 +200,7 @@ export function useGis() {
         ? { x: ev.clientX, y: ev.clientY, lines: tooltipLines(store, year(), hit, state.value.layer) } : null;
     });
     handle.onClick(onClick);
+    handle.onDblClickOutside(reset);
     handle.onZoom((lv) => {
       zoomLevel.value = lv;
       if (lv === 'village') void loadVillages();

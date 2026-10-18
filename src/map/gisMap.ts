@@ -23,6 +23,8 @@ export interface GisMapHandle {
   home(): void;
   onHover(cb: (hit: PaneHit | null, ev: MouseEvent) => void): void;
   onClick(cb: (hit: PaneHit) => void): void;
+  /** 雙擊陸地以外（海面）。陸地以畫面上任一層填色判斷，沒有村名的小島也算陸地 */
+  onDblClickOutside(cb: () => void): void;
   onZoom(cb: (level: ZoomLevel) => void): void;
   destroy(): void;
 }
@@ -244,6 +246,12 @@ export function createGisMap(container: HTMLElement): GisMapHandle {
       map.on('click', (e) => {
         const hit = hitAt(e.point);
         if (hit) cb(hit);
+      });
+    },
+    onDblClickOutside(cb) {
+      const layers = [...SOURCES.map((s) => `${s}-fill`), 'villages-borrowed-fill'];
+      map.on('dblclick', (e) => {
+        if (!map.queryRenderedFeatures(e.point, { layers }).length) cb();
       });
     },
     onZoom(cb) {
