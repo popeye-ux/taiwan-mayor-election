@@ -80,8 +80,9 @@ export function createGisMap(container: HTMLElement): GisMapHandle {
     renderWorldCopies: false,
   });
   map.touchZoomRotate.disableRotation();
-  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+  // 下方角落後加入的控制項排在上面：比例尺先加，才會在縮放按鈕下方
   map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
 
   const filled = new Map<SourceId, Set<string>>(SOURCES.map((s) => [s, new Set()]));
   let selected: { source: SourceId; code: string }[] = [];
