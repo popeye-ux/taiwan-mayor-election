@@ -8,9 +8,10 @@ import type { Level } from '../data/types';
 import { labelName, labelPoints } from '../geo/labels';
 import { mainBounds, townOfVillage } from '../geo/topo';
 import type { GisMapHandle } from '../map/gisMap';
-import { levelAtZoom, INITIAL, type ZoomLevel } from '../map/gisZoom';
-import type { PaneHit } from '../map/pane';
+import { levelAtZoom, INITIAL, type FitPadding, type ZoomLevel } from '../map/gisZoom';
+import { OUTER_COUNTIES, type PaneHit } from '../map/pane';
 import { useViewState } from '../state/useViewState';
+import { useMobile } from '../state/useMobile';
 import { up, validate, type ViewState } from '../state/url';
 import { runApply, type LoadStatus } from './flow';
 import { createLookups, fillOf, tooltipLines, type ViewCtx } from './common';
@@ -34,6 +35,9 @@ export function useGis() {
   let shownVillages: number | null = null;
   let filledKey = '';
   let lastTarget: string | null = null;
+  const mobile = useMobile();
+  /** 手機版由畫面提供對準時的 padding（扣掉頂部控制列與抽屜）；桌機用 FIT 預設 */
+  let padding: (() => FitPadding) | null = null;
 
   const currentYear = computed<number | null>(() => (status.value === 'ready' ? effectiveYear(state.value, store.meta) : null));
   const year = () => effectiveYear(state.value, store.meta);
@@ -100,9 +104,20 @@ export function useGis() {
     const first = lastTarget === null;
     lastTarget = key;
     const g = store.baseGeo(store.meta.baseYear());
-    if (s.town) gis.fitTo(mainBounds(g.towns.features.filter((f) => f.properties.TOWNCODE === s.town)), 'town', first);
-    else if (s.county) gis.fitTo(mainBounds(g.counties.features.filter((f) => f.properties.COUNTYCODE === s.county)), 'county', first);
-    else if (!first) gis.home();
+    if (s.town) gis.fitTo(mainBounds(g.towns.features.filter((f) => f.properties.TOWNCODE === s.town)), 'town', first, padding?.());
+    else if (s.county) gis.fitTo(mainBounds(g.counties.features.filter((f) => f.properties.COUNTYCODE === s.county)), 'county', first, padding?.());
+    else if (!first || padding) goHome(first);
+  }
+
+  /** 初始視角。手機版（有 padding）改成把臺灣本島與澎湖對進控制列與抽屜之間的可見範圍 */
+  function goHome(instant = false) {
+    if (!gis) return;
+    if (!padding) {
+      gis.home();
+      return;
+    }
+    const feats = store.baseGeo(store.meta.baseYear()).counties.features.filter((f) => !OUTER_COUNTIES.includes(f.properties.COUNTYCODE));
+    gis.fitTo(mainBounds(feats), 'county', instant, padding());
   }
 
   function apply(): Promise<void> {
@@ -174,7 +189,7 @@ export function useGis() {
       const codes = new Set(store.villageCodesIn(y, id, town));
       const feats: Feature[] = store.allVillages(y).features.filter((f) => codes.has(f.properties.VILLCODE));
       if (feats.length) {
-        gis.fitTo(mainBounds(feats), 'village');
+        gis.fitTo(mainBounds(feats), 'village', false, padding?.());
         return;
       }
     }
@@ -183,7 +198,7 @@ export function useGis() {
   /** 雙擊臺灣以外：取消選取並回初始視角（年份、圖層不變）。已在全國時也要回初始視角 */
   function reset() {
     lastTarget = targetKey({ ...state.value, county: null, town: null });
-    gis?.home();
+    goHome();
     set({ county: null, town: null, village: null });
   }
 
@@ -195,6 +210,12 @@ export function useGis() {
     gis = handle;
     if (import.meta.env.DEV) (window as unknown as { __gis: GisMapHandle }).__gis = handle;
     handle.onHover((hit, ev) => {
+      // 手機沒有滑鼠移入：點一下後瀏覽器補發的 mousemove 不能畫 hover 或 tooltip
+      if (mobile.value) {
+        handle.setHover(null);
+        tooltip.value = null;
+        return;
+      }
       handle.setHover(hit);
       tooltip.value = hit && status.value === 'ready'
         ? { x: ev.clientX, y: ev.clientY, lines: tooltipLines(store, year(), hit, state.value.layer) } : null;
@@ -206,6 +227,10 @@ export function useGis() {
       if (lv === 'village') void loadVillages();
     });
     void apply();
+  }
+
+  function setPadding(fn: (() => FitPadding) | null) {
+    padding = fn;
   }
 
   function retry() {
@@ -246,7 +271,7 @@ export function useGis() {
     rowAt: (y: number, s: ViewState = state.value) => lookups.rowAt(y, s),
     flipAt: (y: number, s: ViewState = state.value) => lookups.flipAt(y, s),
     countyName: lookups.countyName, townName: lookups.townName, villageName: lookups.villageName,
-    currentYear, registerMap, pick, setYear,
+    currentYear, registerMap, pick, setYear, setPadding,
   };
   return ctx satisfies ViewCtx;
 }

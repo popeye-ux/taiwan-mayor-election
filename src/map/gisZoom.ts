@@ -8,10 +8,12 @@ export const MIN_ZOOM = 5.5;
 export const MAX_ZOOM = 16;
 export const INITIAL = { center: [120.9, 23.7] as [number, number], zoom: 6.9 };
 
-const PADDING = { top: 90, bottom: 60, left: 60, right: 500 };
+export type FitPadding = { top: number; right: number; bottom: number; left: number };
+
+const PADDING: FitPadding = { top: 90, bottom: 60, left: 60, right: 500 };
 
 /** 點選或從側欄選取後的 fitBounds 參數 */
-export const FIT: Record<ZoomLevel, { padding: typeof PADDING; duration: number; minZoom?: number; maxZoom: number }> = {
+export const FIT: Record<ZoomLevel, { padding: FitPadding; duration: number; minZoom?: number; maxZoom: number }> = {
   county: { padding: PADDING, duration: 900, maxZoom: 10.5 },
   town: { padding: PADDING, duration: 900, minZoom: 12.2, maxZoom: 13.5 },
   village: { padding: PADDING, duration: 700, maxZoom: 15 },

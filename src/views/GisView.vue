@@ -7,9 +7,13 @@ import Breadcrumbs from '../components/Breadcrumbs.vue';
 import Legend from '../components/Legend.vue';
 import Tooltip from '../components/Tooltip.vue';
 import StatusBar from '../components/StatusBar.vue';
+import MobileTop from '../components/mobile/MobileTop.vue';
+import MobileDrawer from '../components/mobile/MobileDrawer.vue';
 import type { Layer, Party } from '../data/types';
 import { createGisMap } from '../map/gisMap';
 import { webglSupported } from '../map/pane';
+import { drawerSnap, useMobile } from '../state/useMobile';
+import { afterPick, selectionDeepened, snapHeights } from '../domain/mobile';
 import { ViewKey } from './common';
 import { useGis, GisKey } from './useGis';
 
@@ -68,10 +72,24 @@ const setLayer = (layer: Layer) => set({ layer });
 /** 切到四屆比較：query 原樣保留 */
 const toCompare = () => router.push({ path: '/', query: route.query });
 const reload = () => location.reload();
+
+// ── 手機版 ──────────────────────────────────────────────
+const mobile = useMobile();
+/** 頂部兩塊控制列的下緣 */
+const topH = ref(0);
+// sync：在 useGis 的 watch 對準地圖之前先把抽屜升高，padding 才會用到新的高度
+watch(state, (n, o) => {
+  if (mobile.value && o && selectionDeepened(o, n)) drawerSnap.value = afterPick(drawerSnap.value);
+}, { flush: 'sync' });
+watch(mobile, (m) => {
+  ctx.setPadding(m ? () => ({
+    top: topH.value + 16, bottom: snapHeights(window.innerHeight, topH.value)[drawerSnap.value] + 16, left: 24, right: 24,
+  }) : null);
+}, { immediate: true });
 </script>
 
 <template>
-  <div class="gis">
+  <div class="gis" :class="{ m: mobile, open: mobile && drawerSnap !== 'collapsed' }">
     <div v-if="ready && webgl" ref="mapEl" class="map" />
     <div v-else class="center">
       <span v-if="!webgl">此瀏覽器不支援 WebGL，無法顯示地圖</span>
@@ -79,7 +97,13 @@ const reload = () => location.reload();
       <span v-else>正在載入圖資…</span>
     </div>
 
-    <GisTop :years="years" :year="year" :layer="state.layer" @year="ctx.setYear" @layer="setLayer" @view="toCompare">
+    <MobileTop
+      v-if="mobile" view="gis" :years="years" :year="year" :layer="state.layer"
+      @year="ctx.setYear" @layer="setLayer" @view="toCompare" @height="(h) => (topH = h)"
+    >
+      <Breadcrumbs :items="crumbs" @go="set" />
+    </MobileTop>
+    <GisTop v-else :years="years" :year="year" :layer="state.layer" @year="ctx.setYear" @layer="setLayer" @view="toCompare">
       <Breadcrumbs :items="crumbs" @go="set" />
     </GisTop>
 
@@ -91,13 +115,15 @@ const reload = () => location.reload();
       <StatusBar :text="loadText" :retry="load.kind === 'error'" @retry="ctx.retry" />
     </template>
 
-    <aside class="side"><GisSide v-if="ready" /></aside>
+    <MobileDrawer v-if="mobile" :top-h="topH"><GisSide v-if="ready" /></MobileDrawer>
+    <aside v-else class="side"><GisSide v-if="ready" /></aside>
     <Tooltip :x="tooltip?.x ?? 0" :y="tooltip?.y ?? 0" :lines="tooltip?.lines ?? null" />
   </div>
 </template>
 
 <style scoped>
-.gis { position: fixed; inset: 0; min-width: 900px; background: var(--paper); }
+.gis { position: fixed; inset: 0; background: var(--paper); }
+@media (min-width: 761px) { .gis { min-width: 900px; } }
 .map { position: fixed; inset: 0; }
 .center {
   position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -125,4 +151,11 @@ const reload = () => location.reload();
   .gis :deep(.maplibregl-ctrl-bottom-right) { right: 376px; }
   .legend-box { max-width: calc(100vw - 424px); }
 }
+/* 手機版：圖例與比例尺在收合抽屜上方，抽屜拉起時隱藏；縮放靠雙指 */
+.gis.m .legend-box { left: 8px; right: 8px; bottom: 128px; max-width: none; flex-wrap: wrap; padding: 4px 4px 4px 10px; }
+.gis.m .legend-box :deep(.legend) { gap: var(--s-2) var(--s-3); padding: 2px 4px; }
+.gis.m :deep(.maplibregl-ctrl-group) { display: none; }
+.gis.m :deep(.maplibregl-ctrl-bottom-right) { right: 0; bottom: 176px; }
+.gis.m :deep(.status) { bottom: 184px; }
+.gis.m.open .legend-box, .gis.m.open :deep(.maplibregl-ctrl-scale) { display: none; }
 </style>

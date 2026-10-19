@@ -4,7 +4,7 @@ import type { FeatureCollection } from 'geojson';
 import type { BaseGeo } from '../geo/topo';
 import { NONE } from '../domain/fill';
 import type { PaneHit, SourceId } from './pane';
-import { FIT, INITIAL, MAX_ZOOM, MIN_ZOOM, ZOOM_TOWN, ZOOM_VILLAGE, levelAtZoom, type ZoomLevel } from './gisZoom';
+import { FIT, INITIAL, MAX_ZOOM, MIN_ZOOM, ZOOM_TOWN, ZOOM_VILLAGE, levelAtZoom, type FitPadding, type ZoomLevel } from './gisZoom';
 
 export interface LabelSet { counties: FeatureCollection; towns: FeatureCollection }
 
@@ -18,8 +18,8 @@ export interface GisMapHandle {
   setPreview(on: boolean): void;
   setHover(hit: PaneHit | null): void;
   setSelected(source: SourceId | null, codes: string[]): void;
-  /** instant：開站時依網址定位，不播動畫 */
-  fitTo(bounds: [[number, number], [number, number]], level: ZoomLevel, instant?: boolean): void;
+  /** instant：開站時依網址定位，不播動畫；padding：取代 FIT 的預設（手機版扣掉頂部控制列與抽屜） */
+  fitTo(bounds: [[number, number], [number, number]], level: ZoomLevel, instant?: boolean, padding?: FitPadding): void;
   home(): void;
   onHover(cb: (hit: PaneHit | null, ev: MouseEvent) => void): void;
   onClick(cb: (hit: PaneHit) => void): void;
@@ -223,9 +223,9 @@ export function createGisMap(container: HTMLElement): GisMapHandle {
         for (const s of selected) map.setFeatureState({ source: s.source, id: s.code }, { selected: true });
       });
     },
-    fitTo(bounds, level, instant = false) {
+    fitTo(bounds, level, instant = false, padding) {
       const p = FIT[level];
-      const cam = map.cameraForBounds(bounds, { padding: p.padding, maxZoom: p.maxZoom });
+      const cam = map.cameraForBounds(bounds, { padding: padding ?? p.padding, maxZoom: p.maxZoom });
       if (!cam) return;
       const zoom = Math.max(cam.zoom ?? INITIAL.zoom, p.minZoom ?? 0);
       map.stop();
