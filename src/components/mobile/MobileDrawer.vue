@@ -1,11 +1,12 @@
 <script setup lang="ts">
 // 手機版底部抽屜：收合／半開／全開三段（共用 drawerSnap）。拖曳把手或（非全開時）內容區移動，點把手循環切換；
 // 只有全開時內容區可以捲動。
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { drawerSnap } from '../../state/useMobile';
 import { DRAWER_COLLAPSED, nextSnap, snapHeights, snapTo } from '../../domain/mobile';
 
-const props = defineProps<{ topH: number }>();
+/** resetKey：選取改變時由畫面傳入新值，內容捲回頂端 */
+const props = defineProps<{ topH: number; resetKey?: string }>();
 
 const viewportH = ref(window.innerHeight);
 const onResize = () => { viewportH.value = window.innerHeight; };
@@ -18,6 +19,11 @@ const height = computed(() => dragH.value ?? heights.value[drawerSnap.value]);
 const full = computed(() => drawerSnap.value === 'full' && dragH.value === null);
 
 const root = ref<HTMLElement | null>(null);
+const body = ref<HTMLElement | null>(null);
+// 收合／半開時內容不能捲，要捲回頂端才看得到眉標與標題；換了選取也從頂端開始
+const toTop = () => { if (body.value) body.value.scrollTop = 0; };
+watch(drawerSnap, (s) => { if (s !== 'full') toTop(); });
+watch(() => props.resetKey, toTop);
 /** 位移超過這個值才算拖曳；之前不擷取指標，內容裡的按鈕照常收到 click */
 const TAP = 6;
 let start: { y: number; h: number; id: number; onHandle: boolean } | null = null;
@@ -64,7 +70,7 @@ function up(e: PointerEvent) {
     @pointerdown="down" @pointermove="move" @pointerup="up" @pointercancel="up"
   >
     <div class="grip"><i /></div>
-    <div class="body"><slot /></div>
+    <div ref="body" class="body"><slot /></div>
   </section>
 </template>
 

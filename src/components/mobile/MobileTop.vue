@@ -26,6 +26,8 @@ const observer = new ResizeObserver(() => {
   if (root.value) emit('height', root.value.getBoundingClientRect().bottom);
 });
 onMounted(() => observer.observe(root.value!));
+/** 呼叫當下量的下緣（ResizeObserver 的值可能還沒更新，地圖對準時用這個） */
+defineExpose({ bottom: () => root.value?.getBoundingClientRect().bottom ?? 0 });
 onBeforeUnmount(() => observer.disconnect());
 
 /** 選中的圖層捲進可見範圍 */

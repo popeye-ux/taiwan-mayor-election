@@ -77,14 +77,19 @@ const reload = () => location.reload();
 const mobile = useMobile();
 /** 頂部兩塊控制列的下緣 */
 const topH = ref(0);
+const topEl = ref<InstanceType<typeof MobileTop> | null>(null);
 // sync：在 useGis 的 watch 對準地圖之前先把抽屜升高，padding 才會用到新的高度
 watch(state, (n, o) => {
   if (mobile.value && o && selectionDeepened(o, n)) drawerSnap.value = afterPick(drawerSnap.value);
 }, { flush: 'sync' });
-watch(mobile, (m) => {
+watch(mobile, async (m, old) => {
   ctx.setPadding(m ? () => ({
-    top: topH.value + 16, bottom: snapHeights(window.innerHeight, topH.value)[drawerSnap.value] + 16, left: 24, right: 24,
+    top: (topEl.value?.bottom() ?? topH.value) + 16, bottom: snapHeights(window.innerHeight, topH.value)[drawerSnap.value] + 16, left: 24, right: 24,
   }) : null);
+  // 開站時由 useGis 自己對準；之後跨過門檻要等新版面排好（頂部控制列量得到）再重新對準
+  if (old === undefined) return;
+  await nextTick();
+  ctx.reframe();
 }, { immediate: true });
 </script>
 
@@ -98,7 +103,7 @@ watch(mobile, (m) => {
     </div>
 
     <MobileTop
-      v-if="mobile" view="gis" :years="years" :year="year" :layer="state.layer"
+      v-if="mobile" ref="topEl" view="gis" :years="years" :year="year" :layer="state.layer"
       @year="ctx.setYear" @layer="setLayer" @view="toCompare" @height="(h) => (topH = h)"
     >
       <Breadcrumbs :items="crumbs" @go="set" />
@@ -115,7 +120,7 @@ watch(mobile, (m) => {
       <StatusBar :text="loadText" :retry="load.kind === 'error'" @retry="ctx.retry" />
     </template>
 
-    <MobileDrawer v-if="mobile" :top-h="topH"><GisSide v-if="ready" /></MobileDrawer>
+    <MobileDrawer v-if="mobile" :top-h="topH" :reset-key="`${state.county}|${state.town}|${state.village}`"><GisSide v-if="ready" /></MobileDrawer>
     <aside v-else class="side"><GisSide v-if="ready" /></aside>
     <Tooltip :x="tooltip?.x ?? 0" :y="tooltip?.y ?? 0" :lines="tooltip?.lines ?? null" />
   </div>

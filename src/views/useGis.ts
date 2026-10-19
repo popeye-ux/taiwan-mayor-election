@@ -233,6 +233,16 @@ export function useGis() {
     padding = fn;
   }
 
+  /** 跨過手機門檻（旋轉手機）後，可見範圍變了：立即重新對準目前選取，全國時回初始視角 */
+  function reframe() {
+    if (!gis || status.value !== 'ready') return;
+    // 容器大小剛變，MapLibre 可能還沒重量畫布；不先量，視角會用舊寬度算
+    gis.map.resize();
+    lastTarget = null;
+    if (state.value.county) frame();
+    else goHome(true);
+  }
+
   function retry() {
     void apply();
     if (zoomLevel.value === 'village' || state.value.county) void loadVillages();
@@ -271,7 +281,7 @@ export function useGis() {
     rowAt: (y: number, s: ViewState = state.value) => lookups.rowAt(y, s),
     flipAt: (y: number, s: ViewState = state.value) => lookups.flipAt(y, s),
     countyName: lookups.countyName, townName: lookups.townName, villageName: lookups.villageName,
-    currentYear, registerMap, pick, setYear, setPadding,
+    currentYear, registerMap, pick, setYear, setPadding, reframe,
   };
   return ctx satisfies ViewCtx;
 }

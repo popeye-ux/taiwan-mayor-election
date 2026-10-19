@@ -115,12 +115,14 @@ const mobile = useMobile();
 const year = computed(() => ctx.currentYear.value ?? 0);
 /** 頂部兩塊控制列的下緣（抽屜全開到這裡，蓋住摘要列） */
 const topH = ref(0);
-/** 摘要列的下緣（地圖對準、插圖框位置用） */
-const sumBottom = ref(0);
+const topEl = ref<InstanceType<typeof MobileTop> | null>(null);
+/** 摘要列的高度（只量尺寸；位置跟著 topH，插圖框放在它下面） */
+const sumH = ref(0);
 const sumEl = ref<HTMLElement | null>(null);
 const sumObserver = new ResizeObserver(() => {
-  if (sumEl.value) sumBottom.value = sumEl.value.getBoundingClientRect().bottom;
+  if (sumEl.value) sumH.value = sumEl.value.offsetHeight;
 });
+const sumBottom = computed(() => topH.value + 8 + sumH.value);
 watch(sumEl, (el, old) => {
   if (old) sumObserver.unobserve(old);
   if (el) sumObserver.observe(el);
@@ -132,7 +134,8 @@ watch(state, (n, o) => {
 }, { flush: 'sync' });
 watch(mobile, (m) => {
   ctx.setPadding(m ? () => ({
-    top: Math.max(sumBottom.value, topH.value) + 16,
+    // 對準時當下量：ResizeObserver 的值在開站第一次對準時可能還沒更新
+    top: (sumEl.value?.getBoundingClientRect().bottom ?? topEl.value?.bottom() ?? topH.value) + 16,
     bottom: snapHeights(window.innerHeight, topH.value)[drawerSnap.value] + 16, left: 24, right: 24,
   }) : null);
 }, { immediate: true });
@@ -161,7 +164,7 @@ watch(mobile, (m) => {
       <span v-else>正在載入圖資…</span>
     </div>
     <MobileTop
-      view="compare" :years="years" :year="year" :layer="state.layer"
+      ref="topEl" view="compare" :years="years" :year="year" :layer="state.layer"
       @year="ctx.setYear" @layer="setLayer" @view="toGis" @height="(h) => (topH = h)"
     >
       <Breadcrumbs :items="crumbs" @go="set" />
@@ -169,7 +172,7 @@ watch(mobile, (m) => {
     <div v-if="ready" ref="sumEl" class="m-sum" :style="{ top: `${topH + 8}px` }">
       <MobileSummary :summary="summaryFor(year)" :years="years" :year="year" @year="ctx.setYear" />
     </div>
-    <MobileDrawer :top-h="topH"><SidePanel v-if="ready" /></MobileDrawer>
+    <MobileDrawer :top-h="topH" :reset-key="`${state.county}|${state.town}|${state.village}`"><SidePanel v-if="ready" /></MobileDrawer>
   </div>
   <div v-else class="app">
     <TopBar :layer="state.layer" @update:layer="setLayer" @view="toGis">
