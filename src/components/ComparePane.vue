@@ -2,7 +2,8 @@
 import { markRaw, onBeforeUnmount, onMounted, ref } from 'vue';
 import { createPane, type PaneHandle } from '../map/pane';
 
-const props = defineProps<{ year: number; label: string; preview: boolean }>();
+/** bare：手機版不畫欄頭（屆次與摘要改在頂部控制列與摘要列） */
+const props = defineProps<{ year: number; label: string; preview: boolean; bare?: boolean }>();
 const emit = defineEmits<{ ready: [pane: PaneHandle]; failed: []; resize: [] }>();
 const el = ref<HTMLElement | null>(null);
 let pane: PaneHandle | null = null;
@@ -28,7 +29,7 @@ defineExpose({ year: props.year });
 
 <template>
   <div class="pane" :class="{ pre: preview }">
-    <div class="pane-h">
+    <div v-if="!bare" class="pane-h">
       <div class="yr"><b>{{ year }}</b><span>{{ label }}</span></div>
       <div class="sum"><slot name="summary" /></div>
     </div>

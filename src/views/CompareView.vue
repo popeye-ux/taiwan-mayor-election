@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide, ref } from 'vue';
+import { computed, onBeforeUnmount, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import TopBar from '../components/TopBar.vue';
 import Breadcrumbs from '../components/Breadcrumbs.vue';
@@ -11,6 +11,11 @@ import ComparePane from '../components/ComparePane.vue';
 import PaneSummary, { type Summary } from '../components/PaneSummary.vue';
 import InsetMap from '../components/InsetMap.vue';
 import SidePanel from '../components/side/SidePanel.vue';
+import MobileTop from '../components/mobile/MobileTop.vue';
+import MobileDrawer from '../components/mobile/MobileDrawer.vue';
+import MobileSummary from '../components/mobile/MobileSummary.vue';
+import { drawerSnap, useMobile } from '../state/useMobile';
+import { afterPick, selectionDeepened, snapHeights } from '../domain/mobile';
 import type { Layer, Party } from '../data/types';
 import { webglSupported, type PaneHit } from '../map/pane';
 import { seatsByParty } from '../domain/national';
@@ -104,10 +109,69 @@ const router = useRouter();
 /** 切到 GIS：query 原樣保留（圖層、選取、year） */
 const toGis = () => router.push({ path: '/gis', query: route.query });
 const reload = () => location.reload();
+
+// ── 手機版：單張地圖，年份列與摘要列換屆 ─────────────────
+const mobile = useMobile();
+const year = computed(() => ctx.currentYear.value ?? 0);
+/** 頂部兩塊控制列的下緣（抽屜全開到這裡，蓋住摘要列） */
+const topH = ref(0);
+/** 摘要列的下緣（地圖對準、插圖框位置用） */
+const sumBottom = ref(0);
+const sumEl = ref<HTMLElement | null>(null);
+const sumObserver = new ResizeObserver(() => {
+  if (sumEl.value) sumBottom.value = sumEl.value.getBoundingClientRect().bottom;
+});
+watch(sumEl, (el, old) => {
+  if (old) sumObserver.unobserve(old);
+  if (el) sumObserver.observe(el);
+});
+onBeforeUnmount(() => sumObserver.disconnect());
+// sync：在 useCompare 的 watch 對準地圖之前先把抽屜升高，padding 才會用到新的高度
+watch(state, (n, o) => {
+  if (mobile.value && o && selectionDeepened(o, n)) drawerSnap.value = afterPick(drawerSnap.value);
+}, { flush: 'sync' });
+watch(mobile, (m) => {
+  ctx.setPadding(m ? () => ({
+    top: Math.max(sumBottom.value, topH.value) + 16,
+    bottom: snapHeights(window.innerHeight, topH.value)[drawerSnap.value] + 16, left: 24, right: 24,
+  }) : null);
+}, { immediate: true });
 </script>
 
 <template>
-  <div class="app">
+  <div v-if="mobile" class="mapp" :class="{ open: drawerSnap !== 'collapsed' }">
+    <template v-if="ready && webgl">
+      <ComparePane
+        key="m" bare :year="year" label="" :preview="!store.meta.hasResults(year)"
+        @ready="(p) => ctx.registerPane(year, p)" @failed="webgl = false" @resize="ctx.resized"
+      >
+        <div v-if="!state.county" class="inset-at" :style="{ top: `${sumBottom}px` }">
+          <InsetMap
+            :features="insetFeatures(year)" :fill-of="(c) => ctx.countyFill(year, c)"
+            @pick="(c) => set({ county: c, town: null, village: null })"
+          />
+        </div>
+      </ComparePane>
+      <div class="m-legend"><Legend :layer="state.layer" :parties="legendParties" :national="!state.county" /></div>
+      <StatusBar :text="loadText" :retry="load.kind === 'error'" @retry="ctx.retry" />
+    </template>
+    <div v-else class="center">
+      <span v-if="!webgl">此瀏覽器不支援 WebGL，無法顯示地圖</span>
+      <button v-else-if="status === 'error'" type="button" @click="reload">連線中斷 · 重新整理</button>
+      <span v-else>正在載入圖資…</span>
+    </div>
+    <MobileTop
+      view="compare" :years="years" :year="year" :layer="state.layer"
+      @year="ctx.setYear" @layer="setLayer" @view="toGis" @height="(h) => (topH = h)"
+    >
+      <Breadcrumbs :items="crumbs" @go="set" />
+    </MobileTop>
+    <div v-if="ready" ref="sumEl" class="m-sum" :style="{ top: `${topH + 8}px` }">
+      <MobileSummary :summary="summaryFor(year)" :years="years" :year="year" @year="ctx.setYear" />
+    </div>
+    <MobileDrawer :top-h="topH"><SidePanel v-if="ready" /></MobileDrawer>
+  </div>
+  <div v-else class="app">
     <TopBar :layer="state.layer" @update:layer="setLayer" @view="toGis">
       <Breadcrumbs :items="crumbs" @go="set" />
     </TopBar>
@@ -141,7 +205,8 @@ const reload = () => location.reload();
 </template>
 
 <style scoped>
-.app { display: grid; grid-template-rows: var(--topbar-height) 1fr; height: 100vh; min-width: 900px; }
+.app { display: grid; grid-template-rows: var(--topbar-height) 1fr; height: 100vh; }
+@media (min-width: 761px) { .app { min-width: 900px; } }
 .main { display: grid; grid-template-columns: minmax(0, 1fr) clamp(320px, 34vw, 440px); min-height: 0; }
 .maps { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--hairline); min-height: 0; }
 .center {
@@ -152,4 +217,14 @@ const reload = () => location.reload();
 .side { border-left: 1px solid var(--hairline); background: var(--surface); overflow-y: auto; min-height: 0; }
 .side-in { padding: var(--s-6); display: flex; flex-direction: column; gap: var(--s-6); }
 @media (max-width: 1280px) { .side-in { padding: var(--s-5); } }
+/* 手機版 */
+.mapp { position: fixed; inset: 0; background: var(--paper); }
+.mapp > .pane { position: absolute; inset: 0; }
+.mapp .center { position: absolute; inset: 0; }
+.inset-at { position: absolute; left: 0; z-index: 4; }
+.m-sum { position: fixed; left: 8px; right: 8px; z-index: 19; }
+.m-legend { position: fixed; left: 8px; right: 8px; bottom: 128px; z-index: 10; }
+.m-legend :deep(.legend) { position: static; transform: none; max-width: none; gap: var(--s-2) var(--s-3); padding: 6px 10px; }
+.mapp :deep(.status) { position: fixed; bottom: 184px; }
+.mapp.open .m-legend { display: none; }
 </style>
