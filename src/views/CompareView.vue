@@ -225,7 +225,7 @@ watch(mobile, (m) => {
 .mapp > .pane { position: absolute; inset: 0; }
 .mapp .center { position: absolute; inset: 0; }
 .inset-at { position: absolute; left: 0; z-index: 4; }
-.m-sum { position: fixed; left: 8px; right: 8px; z-index: 19; }
+.m-sum { position: fixed; left: 8px; right: 8px; z-index: 14; } /* 低於抽屜（15）：全開時抽屜蓋住摘要列，把手才點得到 */
 .m-legend { position: fixed; left: 8px; right: 8px; bottom: 128px; z-index: 10; }
 .m-legend :deep(.legend) { position: static; transform: none; max-width: none; gap: var(--s-2) var(--s-3); padding: 6px 10px; }
 .mapp :deep(.status) { position: fixed; bottom: 184px; }
